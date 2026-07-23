@@ -1,0 +1,1021 @@
+(function () {
+  'use strict';
+
+  const config = window.CES_APP_CONFIG;
+  const state = {
+    step: 1,
+    totalSteps: 3,
+    role: '',
+    photoData: '',
+    boardingPassData: '',
+    latestResult: null,
+    selections: {
+      morningDrink: '',
+      morningSweetness: '50%',
+      breakfastFood: '',
+      afternoonDrink: '',
+      afternoonSweetness: '50%'
+    }
+  };
+
+  const $ = (selector) => document.querySelector(selector);
+  const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+  const client = new AppsScriptFormClient(config);
+  const stepNames = ['เลือกกลุ่ม', 'ข้อมูลผู้เดินทาง', 'เมนูและยืนยัน'];
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  function init() {
+    populateSelect($('#morningSweetness'), config.menus.sweetnessLevels, 'เลือกความหวาน');
+    populateSelect($('#afternoonSweetness'), config.menus.sweetnessLevels, 'เลือกความหวาน');
+    $('#morningSweetness').value = state.selections.morningSweetness;
+    $('#afternoonSweetness').value = state.selections.afternoonSweetness;
+
+    renderOptionGrid('morningDrinkGrid', config.menus.morningDrinks, 'morningDrink', 'drink');
+    renderOptionGrid('foodGrid', config.menus.breakfastFoods, 'breakfastFood', 'food');
+    renderOptionGrid('afternoonDrinkGrid', config.menus.afternoonDrinks, 'afternoonDrink', 'drink');
+
+    $$('[data-role]').forEach((button) => button.addEventListener('click', () => selectRole(button.dataset.role)));
+    $('#nextBtn').addEventListener('click', nextStep);
+    $('#backBtn').addEventListener('click', previousStep);
+    $('#submitBtn').addEventListener('click', submitForm);
+    $('#cameraInput').addEventListener('change', handlePhoto);
+    $('#albumInput').addEventListener('change', handlePhoto);
+    $('#downloadJpeg').addEventListener('click', downloadBoardingPass);
+    $('#printPass').addEventListener('click', () => window.print());
+    $('#editAgain').addEventListener('click', editAgain);
+    $('#morningSweetness').addEventListener('change', () => { state.selections.morningSweetness = $('#morningSweetness').value; refreshReview(); });
+    $('#afternoonSweetness').addEventListener('change', () => { state.selections.afternoonSweetness = $('#afternoonSweetness').value; refreshReview(); });
+    $('#employeeId').addEventListener('input', refreshReview);
+    $('#nickname').addEventListener('input', refreshReview);
+
+    goToStep(1);
+    refreshReview();
+  }
+
+  function populateSelect(select, items, placeholder) {
+    select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
+      items.map((item) => `<option value="${escapeAttr(item)}">${escapeHtml(item)}</option>`).join('');
+  }
+
+  function renderOptionGrid(containerId, items, stateKey, type) {
+    const container = $('#' + containerId);
+    container.innerHTML = items.map((item, index) => {
+      const name = typeof item === 'string' ? item : item.name;
+      const sub = typeof item === 'string' ? '' : (item.sub || '');
+      const image = typeof item === 'object' ? item.image : '';
+      const badge = typeof item === 'object' ? item.badge : '';
+      const tone = typeof item === 'object' ? item.tone : '';
+      const selected = state.selections[stateKey] === name;
+      const thumbHtml = image
+        ? `<div class="thumb"><img src="${escapeAttr(image)}" alt="${escapeAttr(name)}"></div>`
+        : `<div class="thumb fallback" style="background:${escapeAttr(getThumbBackground(tone, type))}">${escapeHtml(badge || getFallbackMark(type))}<br><span style="font-size:11px;font-weight:700;line-height:1.2;display:block;margin-top:4px">${escapeHtml(type === 'food' ? 'MENU' : 'DRINK')}</span></div>`;
+      return `
+        <button type="button" class="option-card ${selected ? 'selected' : ''}" data-select="${escapeAttr(stateKey)}" data-value="${escapeAttr(name)}" data-index="${index}">
+          ${thumbHtml}
+          <div class="name">${escapeHtml(name)}</div>
+          ${sub ? `<div class="sub">${escapeHtml(sub)}</div>` : ''}
+        </button>`;
+    }).join('');
+
+    container.querySelectorAll('[data-select]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.selections[stateKey] = button.dataset.value;
+        renderOptionGrid(containerId, items, stateKey, type);
+        refreshReview();
+      });
+    });
+  }
+
+  function getFallbackMark(type) {
+    return type === 'food' ? '🍽️' : '☕';
+  }
+
+  function getThumbBackground(tone, type) {
+    if (type === 'drink') return 'linear-gradient(135deg,#0b2e59,#28598a)';
+    const map = {
+      gold: 'linear-gradient(135deg,#cfad61,#f1d79f)',
+      navy: 'linear-gradient(135deg,#0b2e59,#28598a)',
+      sage: 'linear-gradient(135deg,#7d9468,#b9c69a)',
+      rose: 'linear-gradient(135deg,#ad6d75,#dbb3b9)',
+      olive: 'linear-gradient(135deg,#6f7f4c,#b2bf84)'
+    };
+    return map[tone] || 'linear-gradient(135deg,#6f7f4c,#b2bf84)';
+  }
+
+  function selectRole(role) {
+    state.role = role;
+    $$('[data-role]').forEach((button) => button.classList.toggle('selected', button.dataset.role === role));
+    $('#amMenu').hidden = role !== 'AM_MNG';
+    $('#staffMenu').hidden = role !== 'SUP_STAFF';
+    $('#menuLead').textContent = role === 'AM_MNG'
+      ? 'เลือกเครื่องดื่มช่วงเช้า ระดับความหวาน และเมนูอาหารจาก Fave'
+      : 'เลือกเครื่องดื่มช่วงบ่ายและระดับความหวาน';
+    refreshReview();
+  }
+
+  async function handlePhoto(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('รองรับ JPG, PNG หรือ WebP เท่านั้น', true);
+      event.target.value = '';
+      return;
+    }
+    try {
+      state.photoData = await compressImage(file, 640, 0.72);
+      $('#photoPreview').src = state.photoData;
+    } catch (error) {
+      state.photoData = '';
+      showToast('อ่านรูปไม่สำเร็จ กรุณาเลือกรูปใหม่', true);
+    }
+  }
+
+  function compressImage(file, maxDimension, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = reject;
+      reader.onload = () => {
+        const image = new Image();
+        image.onerror = reject;
+        image.onload = () => {
+          const ratio = Math.min(1, maxDimension / Math.max(image.width, image.height));
+          const width = Math.max(1, Math.round(image.width * ratio));
+          const height = Math.max(1, Math.round(image.height * ratio));
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d', { alpha: false });
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, width, height);
+          ctx.drawImage(image, 0, 0, width, height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        image.src = reader.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function nextStep() {
+    if (!validateStep(state.step)) return;
+    if (state.step < state.totalSteps) goToStep(state.step + 1);
+  }
+
+  function previousStep() {
+    if (state.step > 1) goToStep(state.step - 1);
+  }
+
+  function goToStep(step) {
+    state.step = step;
+    $$('.step').forEach((panel) => panel.classList.toggle('active', Number(panel.dataset.step) === step));
+    $('#progressLabel').textContent = `${step}. ${stepNames[step - 1]}`;
+    $('#progressCount').textContent = `${step}/${state.totalSteps}`;
+    $('#progressBar').style.width = `${(step / state.totalSteps) * 100}%`;
+    $('#backBtn').hidden = step === 1;
+    $('#nextBtn').hidden = step === state.totalSteps;
+    $('#submitBtn').hidden = step !== state.totalSteps;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    refreshReview();
+  }
+
+  function validateStep(step) {
+    if (step === 1 && !state.role) return fail('กรุณาเลือก AM / MNG หรือ SUP / STAFF');
+    if (step === 2) {
+      const employeeId = $('#employeeId').value.trim();
+      if (!/^[A-Za-z0-9._-]{2,20}$/.test(employeeId)) return fail('กรุณากรอกรหัสพนักงานให้ถูกต้อง');
+      if (!$('#nickname').value.trim()) return fail('กรุณากรอกชื่อเล่น');
+      if (!state.photoData) return fail('กรุณาถ่ายรูปหรือเลือกรูป');
+    }
+    if (step === 3) {
+      if (state.role === 'AM_MNG' && !state.selections.morningDrink) return fail('กรุณาเลือกเครื่องดื่มช่วงเช้า');
+      if (state.role === 'AM_MNG' && !state.selections.morningSweetness) return fail('กรุณาเลือกระดับความหวาน');
+      if (state.role === 'AM_MNG' && !state.selections.breakfastFood) return fail('กรุณาเลือกเมนูอาหาร');
+      if (state.role === 'SUP_STAFF' && !state.selections.afternoonDrink) return fail('กรุณาเลือกเครื่องดื่มช่วงบ่าย');
+      if (state.role === 'SUP_STAFF' && !state.selections.afternoonSweetness) return fail('กรุณาเลือกระดับความหวาน');
+    }
+    return true;
+  }
+
+  function refreshReview() {
+    renderAgenda();
+    renderLocations();
+    renderSummary();
+  }
+
+  function renderAgenda() {
+    const agenda = config.agenda[state.role] || [];
+    $('#agenda').innerHTML = agenda.map(([time, title]) => `
+      <div class="agenda-row"><div class="agenda-time">${escapeHtml(time)}</div><div class="agenda-title">${escapeHtml(title)}</div></div>
+    `).join('');
+  }
+
+  function renderLocations() {
+    const locations = [config.event.morningLocation];
+    if (state.role === 'AM_MNG' || config.event.showDinnerForStaff) locations.push(config.event.dinnerLocation);
+    $('#locations').innerHTML = locations.map((location) => `
+      <article class="location-card">
+        <img src="${escapeAttr(location.image)}" alt="${escapeAttr(location.name)}">
+        <div class="location-body">
+          <div class="tag">${escapeHtml(location.label)}</div>
+          <h3>${escapeHtml(location.name)}</h3>
+          <p>เวลา ${escapeHtml(location.time)}</p>
+          <p>${escapeHtml(location.address)}</p>
+          <a class="map-link" href="${escapeAttr(location.mapUrl)}" target="_blank" rel="noopener">เปิด Google Maps ↗</a>
+        </div>
+      </article>
+    `).join('');
+  }
+
+  function renderSummary() {
+    const items = [
+      ['กลุ่ม', state.role === 'AM_MNG' ? 'AM / MNG' : state.role === 'SUP_STAFF' ? 'SUP / STAFF' : '-'],
+      ['รหัสพนักงาน', $('#employeeId').value.trim().toUpperCase() || '-'],
+      ['ชื่อเล่น', $('#nickname').value.trim() || '-']
+    ];
+    if (state.role === 'AM_MNG') {
+      items.push(
+        ['เครื่องดื่ม', state.selections.morningDrink || '-'],
+        ['ความหวาน', state.selections.morningSweetness || '-'],
+        ['อาหาร', state.selections.breakfastFood || '-']
+      );
+    } else if (state.role === 'SUP_STAFF') {
+      items.push(
+        ['เครื่องดื่ม', state.selections.afternoonDrink || '-'],
+        ['ความหวาน', state.selections.afternoonSweetness || '-']
+      );
+    }
+    $('#summary').innerHTML = items.map(([label, value]) => `
+      <div class="summary-item"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>
+    `).join('');
+  }
+
+  async function submitForm() {
+    if (!validateStep(3)) return;
+
+    const button = $('#submitBtn');
+    button.disabled = true;
+    showSaving('กำลังสร้าง Boarding Pass…');
+
+    const employeeId = $('#employeeId').value.trim().toUpperCase();
+    const nickname = $('#nickname').value.trim();
+    const ticketId = createTicketId(state.role, employeeId);
+    const draft = buildBoardingResult(ticketId, employeeId, nickname);
+
+    try {
+      // Generate locally first, so the user always sees the Boarding Pass immediately.
+      state.boardingPassData = await createBoardingPassJpeg(draft, state.photoData, config);
+      state.latestResult = Object.assign({}, draft, {
+        boardingPassFileUrl: config.driveFolderUrl,
+        optimistic: true,
+        updatedExisting: false
+      });
+      hideSaving();
+      showResult(state.latestResult, true);
+
+      const result = await client.submitCheckIn({
+        role: state.role,
+        employeeId,
+        nickname,
+        ticketId,
+        photoData: state.photoData,
+        boardingPassData: state.boardingPassData,
+        consent: true,
+        agendaRead: true,
+        morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
+        morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
+        breakfastFood: state.role === 'AM_MNG' ? state.selections.breakfastFood : '',
+        afternoonDrink: state.role === 'SUP_STAFF' ? state.selections.afternoonDrink : '',
+        afternoonSweetness: state.role === 'SUP_STAFF' ? state.selections.afternoonSweetness : ''
+      });
+
+      state.latestResult = Object.assign({}, draft, result);
+      showResult(state.latestResult, false);
+    } catch (error) {
+      // Keep the local JPEG available even if Drive response is delayed.
+      hideSaving();
+      if (state.boardingPassData) {
+        $('#resultMessage').textContent = 'สร้าง Boarding Pass แล้ว แต่ยังไม่ได้รับการยืนยันจาก Google Drive กรุณาดาวน์โหลด JPEG ไว้ก่อน แล้วตรวจสอบ Deployment ของ Apps Script';
+        $('#driveFileLink').href = config.driveFolderUrl;
+        $('#driveFileLink').textContent = 'เปิดโฟลเดอร์ Drive';
+        showToast(error && error.message ? error.message : 'การบันทึก Drive ตอบกลับช้า', true);
+      } else {
+        handleError(error);
+      }
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  function buildBoardingResult(ticketId, employeeId, nickname) {
+    return {
+      ticketId,
+      employeeId,
+      nickname,
+      role: state.role,
+      roleLabel: state.role === 'AM_MNG' ? 'AM / MNG' : 'SUP / STAFF',
+      departure: state.role === 'AM_MNG' ? '09:30' : '13:00',
+      arrival: '17:00',
+      gate: state.role === 'AM_MNG' ? 'LEAD' : 'TEAM',
+      eventDate: config.event.dateDisplay,
+      eventDateThai: config.event.dateThai,
+      route: 'FAVE CASUAL DINING AND WORKING SPACE → WAKE UP - CAFE AND RESTAURANT',
+      selections: {
+        morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
+        morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
+        breakfastFood: state.role === 'AM_MNG' ? state.selections.breakfastFood : '',
+        afternoonDrink: state.role === 'SUP_STAFF' ? state.selections.afternoonDrink : '',
+        afternoonSweetness: state.role === 'SUP_STAFF' ? state.selections.afternoonSweetness : ''
+      }
+    };
+  }
+
+  function showResult(result, pending) {
+    $('#boardingPassImage').src = state.boardingPassData;
+    $('#driveFileLink').href = result.boardingPassFileUrl || config.driveFolderUrl;
+    $('#driveFileLink').textContent = pending ? 'เปิดโฟลเดอร์ Drive' : 'เปิดไฟล์ใน Drive';
+    if (pending) {
+      $('#resultMessage').textContent = `สร้าง Boarding Pass สำหรับ ${result.nickname} แล้ว • กำลังบันทึก JPEG ลง Google Drive…`;
+    } else {
+      $('#resultMessage').textContent = result.optimistic
+        ? `ส่งข้อมูลของ ${result.nickname} ไปยังระบบแล้ว • กรุณาตรวจไฟล์ในโฟลเดอร์ Drive`
+        : result.updatedExisting
+          ? `อัปเดตข้อมูลของ ${result.nickname} และสร้างไฟล์ใหม่เรียบร้อยแล้ว`
+          : `Check-in สำเร็จสำหรับ ${result.nickname} • ${result.ticketId}`;
+    }
+    $('#appCard').hidden = true;
+    $('.progress-card').hidden = true;
+    $('#bottomActions').hidden = true;
+    $('#resultCard').hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (!pending) showToast(result.optimistic ? 'ส่งข้อมูลเรียบร้อย กรุณาตรวจ Drive' : 'Check-in และบันทึก JPEG สำเร็จแล้ว');
+  }
+
+  function editAgain() {
+    $('#resultCard').hidden = true;
+    $('#appCard').hidden = false;
+    $('.progress-card').hidden = false;
+    $('#bottomActions').hidden = false;
+    goToStep(3);
+  }
+
+  function showSaving(text) {
+    $('#savingText').textContent = text;
+    $('#savingOverlay').hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+
+  function hideSaving() {
+    $('#savingOverlay').hidden = true;
+    document.body.style.overflow = '';
+  }
+
+  function downloadBoardingPass() {
+    if (!state.boardingPassData || !state.latestResult) return fail('ยังไม่มี Boarding Pass');
+    const a = document.createElement('a');
+    a.href = state.boardingPassData;
+    a.download = sanitizeDownloadName(`BoardingPass_${state.latestResult.ticketId}_${state.latestResult.nickname}.jpg`);
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+
+  function createTicketId(role, employeeId) {
+    const prefix = role === 'AM_MNG' ? 'LDR' : 'TEAM';
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    const bytes = new Uint8Array(8);
+    if (window.crypto && window.crypto.getRandomValues) window.crypto.getRandomValues(bytes);
+    let code = '';
+    for (let i = 0; i < bytes.length; i += 1) {
+      const value = window.crypto && window.crypto.getRandomValues ? bytes[i] : Math.floor(Math.random() * 256);
+      code += chars[value % chars.length];
+    }
+    return `CES26-${prefix}-${employeeId}-${code}`;
+  }
+
+
+  async function createBoardingPassJpeg(result, photoData, appConfig) {
+    const exp = appConfig.export;
+    const width = Number(exp.widthPx || 2480);
+    const height = Number(exp.heightPx || 877);
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d', { alpha: false });
+
+    const [photo, logo] = await Promise.all([
+      loadImageWithTimeout(photoData, Number(appConfig.generationTimeoutMs || 12000)),
+      loadImageWithTimeout(appConfig.logoUrl, Number(appConfig.generationTimeoutMs || 12000)).catch(() => null)
+    ]);
+
+    const palette = {
+      navy: '#123C73',
+      navyDeep: '#0D2E59',
+      gold: '#C9A34E',
+      goldSoft: '#E8D8B0',
+      cream: '#FBF8F1',
+      paper: '#FFFCF7',
+      muted: '#6D7786',
+      line: '#D9CBA7'
+    };
+
+    drawBoardingPassBackground(ctx, width, height, palette, logo);
+
+    drawPassengerPhotoCard(ctx, photo, palette);
+
+    ctx.fillStyle = palette.navyDeep;
+    fitText(ctx, String(result.nickname || '').toUpperCase(), 570, 333, 930, 58, 34, '900', 'Georgia, Times New Roman, serif');
+
+    drawEmployeeId(ctx, result.employeeId, 710, 392, 23, palette.navyDeep);
+    drawEmployeeId(ctx, result.employeeId, 122, 762, 21, palette.navyDeep);
+
+    drawInfoValue(ctx, result.roleLabel, 676, 470, 230, 30, 17, palette.navyDeep);
+    drawInfoValue(ctx, result.eventDate, 1006, 470, 230, 28, 16, palette.navyDeep);
+    drawInfoValue(ctx, result.departure, 1338, 470, 210, 32, 18, palette.navyDeep);
+
+    const routeParts = splitRoute(result.route);
+    drawMainRoute(ctx, routeParts, palette);
+    drawInfoValue(ctx, result.arrival, 1538, 612, 160, 33, 18, palette.navyDeep);
+
+    const drink = result.role === 'AM_MNG' ? result.selections.morningDrink : result.selections.afternoonDrink;
+    const sweetness = result.role === 'AM_MNG' ? result.selections.morningSweetness : result.selections.afternoonSweetness;
+    const food = result.role === 'AM_MNG' ? result.selections.breakfastFood : 'AFTERNOON BREAK';
+    drawJourneyServicePanel(ctx, {
+      drink: drink || '-',
+      sweetness: sweetness || '-',
+      food: food || '-'
+    }, palette);
+
+    drawStubDynamic(ctx, {
+      ticketId: result.ticketId,
+      nickname: result.nickname,
+      routeParts
+    }, palette);
+
+    return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.9), Number(exp.dpi || 300));
+  }
+
+  function loadImageWithTimeout(src, timeoutMs) {
+    return Promise.race([
+      loadImage(src),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('โหลดรูปสำหรับ Boarding Pass นานเกินกำหนด')), timeoutMs))
+    ]);
+  }
+
+  function drawBoardingPassBackground(ctx, width, height, palette, logo) {
+    ctx.fillStyle = '#EFECE3';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(10, 27, 50, 0.15)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 8;
+    ctx.fillStyle = palette.paper;
+    roundRect(ctx, 14, 14, width - 28, height - 28, 40);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 14, 14, width - 28, height - 28, 40);
+    ctx.stroke();
+
+    const headerH = 190;
+    ctx.fillStyle = palette.navyDeep;
+    roundRect(ctx, 20, 20, width - 40, headerH, 34);
+    ctx.fill();
+    ctx.fillRect(20, 112, width - 40, 98);
+
+    drawHeaderDecor(ctx, width, palette);
+
+    if (logo) {
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(98, 98, 58, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = palette.goldSoft;
+      ctx.stroke();
+      ctx.clip();
+      ctx.drawImage(logo, 41, 41, 114, 114);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(98, 98, 58, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '800 24px Arial, Helvetica, sans-serif';
+    ctx.fillText('CES • LEADERSHIP TRANSFORMATION JOURNEY PASSPORT', 175, 66);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 72px Georgia, Times New Roman, serif';
+    ctx.fillText('Journey Check-in', 175, 128);
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '700 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('REFLECT • CONNECT • INSPIRE', 175, 175);
+
+    drawBoardingBadge(ctx, 1960, 48, 386, 66, palette);
+
+    // Static areas
+    ctx.fillStyle = '#F6F1E7';
+    roundRect(ctx, 50, 235, 408, 566, 26);
+    ctx.fill();
+
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 24px Arial, Helvetica, sans-serif';
+    ctx.fillText('PASSENGER', 74, 730);
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 17px Arial, Helvetica, sans-serif';
+    ctx.fillText('ID', 74, 778);
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS TEMPLATE', 570, 270);
+    ctx.fillStyle = palette.muted;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('EMPLOYEE ID', 570, 392);
+
+    drawInfoCardShell(ctx, 560, 405, 290, 100, 'GROUP', palette);
+    drawInfoCardShell(ctx, 890, 405, 290, 100, 'DATE', palette);
+    drawInfoCardShell(ctx, 1220, 405, 290, 100, 'BOARDING', palette);
+
+    drawRouteShell(ctx, palette);
+    drawArrivalShell(ctx, palette);
+    drawJourneyServiceShell(ctx, palette);
+    drawStubShell(ctx, palette);
+    drawPerforation(ctx, width, height, palette);
+    drawFooterAccent(ctx, palette);
+  }
+
+  function drawHeaderDecor(ctx, width, palette) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226, 201, 145, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 9]);
+    ctx.beginPath();
+    ctx.moveTo(width - 720, 76);
+    ctx.bezierCurveTo(width - 600, 10, width - 520, 170, width - 350, 98);
+    ctx.bezierCurveTo(width - 260, 58, width - 220, 120, width - 160, 108);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(226, 201, 145, 0.35)';
+    ctx.font = '900 56px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', width - 775, 92);
+    ctx.restore();
+  }
+
+  function drawBoardingBadge(ctx, x, y, width, height, palette) {
+    ctx.save();
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.beginPath();
+    ctx.moveTo(x + width - 96, y + 1);
+    ctx.lineTo(x + width - 1, y + 1);
+    ctx.lineTo(x + width - 1, y + height - 1);
+    ctx.lineTo(x + width - 128, y + height - 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '900 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS', x + 28, y + 43);
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 28px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', x + width - 62, y + 43);
+    ctx.restore();
+  }
+
+  function drawPassengerPhotoCard(ctx, photo, palette) {
+    ctx.save();
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.clip();
+    drawCoverImage(ctx, photo, 78, 260, 352, 420);
+    ctx.restore();
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.stroke();
+  }
+
+  function drawInfoCardShell(ctx, x, y, width, height, label, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText(label, x + 88, y + 32);
+    drawIconBubble(ctx, x + 44, y + 48, 22, palette);
+    ctx.fillStyle = palette.paper;
+    ctx.font = '900 16px Arial, Helvetica, sans-serif';
+    ctx.fillText(label.charAt(0), x + 39, y + 54);
+  }
+
+  function drawIconBubble(ctx, cx, cy, r, palette) {
+    ctx.fillStyle = palette.gold;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawRouteShell(ctx, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 560, 535, 950, 110, 20);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('ROUTE', 618, 566);
+    ctx.font = '900 32px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', 1060, 598);
+  }
+
+  function drawArrivalShell(ctx, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 1530, 535, 238, 110, 20);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('ARRIVAL', 1615, 566);
+    ctx.font = '900 30px Arial, Helvetica, sans-serif';
+    ctx.fillText('⚑', 1564, 599);
+  }
+
+  function drawJourneyServiceShell(ctx, palette) {
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(560, 700);
+    ctx.lineTo(842, 700);
+    ctx.moveTo(1140, 700);
+    ctx.lineTo(1768, 700);
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '900 22px Arial, Helvetica, sans-serif';
+    ctx.fillText('✦', 865, 708);
+    ctx.fillText('✦', 1115, 708);
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 25px Arial, Helvetica, sans-serif';
+    ctx.fillText('JOURNEY SERVICE', 920, 708);
+
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 560, 726, 1208, 102, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#DDCFAB';
+    ctx.beginPath();
+    ctx.moveTo(916, 746);
+    ctx.lineTo(916, 810);
+    ctx.moveTo(1252, 746);
+    ctx.lineTo(1252, 810);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('DRINK', 680, 767);
+    ctx.fillText('SWEETNESS', 992, 767);
+    ctx.fillText('FOOD', 1340, 767);
+  }
+
+  function drawStubShell(ctx, palette) {
+    ctx.fillStyle = '#FCFAF4';
+    ctx.fillRect(1854, 210, 596, 632);
+
+    ctx.fillStyle = palette.navyDeep;
+    roundRect(ctx, 1920, 258, 304, 60, 14);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 22px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS', 1970, 296);
+
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 1920, 348, 304, 62, 14);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 15px Arial, Helvetica, sans-serif';
+    ctx.fillText('PASSENGER', 1918, 448);
+    ctx.fillText('ROUTE', 1918, 572);
+
+    ctx.strokeStyle = '#C8D0DA';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(1918, 516); ctx.lineTo(2212, 516);
+    ctx.moveTo(1918, 682); ctx.lineTo(2212, 682);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', 1918, 820);
+  }
+
+  function drawPerforation(ctx, width, height, palette) {
+    const x = 1854;
+    ctx.save();
+    ctx.strokeStyle = '#A1A8B1';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([14, 18]);
+    ctx.beginPath();
+    ctx.moveTo(x, 120);
+    ctx.lineTo(x, height - 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = palette.paper;
+    ctx.beginPath(); ctx.arc(x, 20, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, height - 20, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFooterAccent(ctx, palette) {
+    ctx.fillStyle = palette.navyDeep;
+    ctx.beginPath();
+    ctx.moveTo(20, 828);
+    ctx.lineTo(1100, 828);
+    ctx.lineTo(1160, 868);
+    ctx.lineTo(20, 868);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', 92, 856);
+
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(1175, 828); ctx.lineTo(1225, 868);
+    ctx.moveTo(1200, 828); ctx.lineTo(1250, 868);
+    ctx.stroke();
+    ctx.strokeStyle = palette.gold;
+    ctx.beginPath();
+    ctx.moveTo(1235, 828); ctx.lineTo(1285, 868);
+    ctx.stroke();
+  }
+
+  function drawEmployeeId(ctx, value, x, y, fontSize, color) {
+    ctx.save();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.direction = 'ltr';
+    if ('fontKerning' in ctx) ctx.fontKerning = 'none';
+    ctx.fillStyle = color;
+    ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
+    ctx.fillText(String(value || ''), Math.round(x), Math.round(y));
+    ctx.restore();
+  }
+
+  function drawInfoValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
+    ctx.fillStyle = color;
+    fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Arial, Helvetica, sans-serif');
+  }
+
+  function splitRoute(routeText) {
+    const text = String(routeText || '').replace(/\s+/g, ' ').trim();
+    const parts = text.split(/\s*(?:→|->|—>|–>)\s*/).map((item) => item.trim()).filter(Boolean);
+    if (parts.length >= 2) return [parts[0], parts.slice(1).join(' → ')];
+    return [text, ''];
+  }
+
+  function drawMainRoute(ctx, routeParts, palette) {
+    const [from, to] = routeParts;
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, from, 620, 595, 340, 2, 38, 18, 900, 'Arial, Helvetica, sans-serif', 1.22);
+    drawWrappedText(ctx, to, 1155, 595, 300, 2, 38, 18, 900, 'Arial, Helvetica, sans-serif', 1.22);
+    ctx.fillStyle = palette.gold;
+    ctx.font = '900 28px Arial, Helvetica, sans-serif';
+    ctx.fillText('→', 1035, 600);
+  }
+
+  function drawJourneyServicePanel(ctx, service, palette) {
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, service.drink, 680, 805, 205, 2, 19, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+    drawWrappedText(ctx, service.sweetness, 1032, 794, 165, 2, 20, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+    drawWrappedText(ctx, service.food, 1340, 805, 388, 2, 19, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+  }
+
+  function drawStubDynamic(ctx, data, palette) {
+    ctx.fillStyle = palette.gold;
+    fitText(ctx, data.ticketId, 1940, 387, 264, 17, 11, '800', 'Arial, Helvetica, sans-serif');
+    ctx.fillStyle = palette.navyDeep;
+    fitText(ctx, String(data.nickname || '').toUpperCase(), 1918, 488, 294, 27, 16, '900', 'Arial, Helvetica, sans-serif');
+    drawWrappedText(ctx, data.routeParts[0], 1918, 610, 294, 2, 21, 12, 900, 'Arial, Helvetica, sans-serif', 1.16);
+    ctx.fillStyle = palette.gold;
+    ctx.font = '900 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', 1918, 639);
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, data.routeParts[1], 1918, 692, 294, 2, 21, 12, 900, 'Arial, Helvetica, sans-serif', 1.16);
+    drawBarcode(ctx, 1910, 724, 332, 78, data.ticketId);
+  }
+
+  function drawWrappedText(ctx, text, x, y, maxWidth, maxLines, fontSize, minSize, weight, family, lineHeightFactor) {
+    const value = String(text || '').trim();
+    const factor = lineHeightFactor || 1.2;
+    let size = fontSize;
+    while (size >= minSize) {
+      ctx.font = `${weight} ${size}px ${family}`;
+      const lines = wrapTextLines(ctx, value, maxWidth, maxLines);
+      if (lines.fits) {
+        const lineHeight = size * factor;
+        lines.lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
+        return;
+      }
+      size -= 1;
+    }
+    ctx.font = `${weight} ${minSize}px ${family}`;
+    const lines = wrapTextLines(ctx, value, maxWidth, maxLines);
+    const lineHeight = minSize * factor;
+    lines.lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
+  }
+
+  function wrapTextLines(ctx, text, maxWidth, maxLines) {
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return { lines: [''], fits: true };
+    const lines = [];
+    let current = words[0];
+    for (let i = 1; i < words.length; i += 1) {
+      const test = `${current} ${words[i]}`;
+      if (ctx.measureText(test).width <= maxWidth) current = test;
+      else {
+        lines.push(current);
+        current = words[i];
+      }
+    }
+    lines.push(current);
+    if (lines.length <= maxLines) return { lines, fits: true };
+    const trimmed = lines.slice(0, maxLines);
+    let last = trimmed[maxLines - 1];
+    while (last.length && ctx.measureText(`${last}…`).width > maxWidth) {
+      last = last.slice(0, -1).trim();
+    }
+    trimmed[maxLines - 1] = `${last}…`;
+    return { lines: trimmed, fits: false };
+  }
+
+  function setJpegDpiMetadata(dataUrl, dpi) {
+    try {
+      const parts = dataUrl.split(',');
+      const binary = atob(parts[1]);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+      for (let i = 2; i < Math.min(bytes.length - 18, 128); i += 1) {
+        const jfif = bytes[i] === 0xFF && bytes[i + 1] === 0xE0 && bytes[i + 4] === 0x4A && bytes[i + 5] === 0x46 && bytes[i + 6] === 0x49 && bytes[i + 7] === 0x46 && bytes[i + 8] === 0;
+        if (!jfif) continue;
+        const density = Math.max(1, Math.min(65535, Math.round(dpi)));
+        bytes[i + 11] = 1;
+        bytes[i + 12] = (density >> 8) & 0xFF;
+        bytes[i + 13] = density & 0xFF;
+        bytes[i + 14] = (density >> 8) & 0xFF;
+        bytes[i + 15] = density & 0xFF;
+        break;
+      }
+      let output = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) output += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+      return `${parts[0]},${btoa(output)}`;
+    } catch (error) {
+      return dataUrl;
+    }
+  }
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const image = new Image();
+      image.onload = () => resolve(image);
+      image.onerror = () => reject(new Error('โหลดรูปสำหรับ Boarding Pass ไม่สำเร็จ'));
+      image.src = src;
+    });
+  }
+
+  function drawCoverImage(ctx, image, x, y, width, height) {
+    const ratio = Math.max(width / image.width, height / image.height);
+    const dw = image.width * ratio;
+    const dh = image.height * ratio;
+    ctx.drawImage(image, x + (width - dw) / 2, y + (height - dh) / 2, dw, dh);
+  }
+
+  function roundRect(ctx, x, y, width, height, radius) {
+    const r = Math.min(radius, width / 2, height / 2);
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + width, y, x + width, y + height, r);
+    ctx.arcTo(x + width, y + height, x, y + height, r);
+    ctx.arcTo(x, y + height, x, y, r);
+    ctx.arcTo(x, y, x + width, y, r);
+    ctx.closePath();
+  }
+
+  function drawMetaBlock(ctx, x, y, width, height, label, value, navy, muted, gold) {
+    ctx.fillStyle = '#faf6ee';
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.fill();
+    ctx.fillStyle = gold;
+    ctx.fillRect(x, y, 6, height);
+    ctx.fillStyle = muted;
+    ctx.font = '800 16px Tahoma, Arial, sans-serif';
+    ctx.fillText(label, x + 24, y + 28);
+    ctx.fillStyle = navy;
+    fitText(ctx, value, x + 24, y + 67, width - 44, 26, 18, '900', 'Tahoma, Arial, sans-serif');
+  }
+
+  function drawStubLine(ctx, x, y, label, value, gold) {
+    ctx.fillStyle = '#d0dae5';
+    ctx.font = '700 18px Tahoma, Arial, sans-serif';
+    ctx.fillText(label, x, y);
+    ctx.fillStyle = '#ffffff';
+    fitText(ctx, value, x, y + 34, 450, 26, 18, '900', 'Tahoma, Arial, sans-serif');
+    ctx.strokeStyle = gold;
+    ctx.globalAlpha = 0.45;
+    ctx.beginPath();
+    ctx.moveTo(x, y + 48);
+    ctx.lineTo(x + 450, y + 48);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+  }
+
+  function drawBarcode(ctx, x, y, width, height, seed) {
+    ctx.fillStyle = '#fff';
+    roundRect(ctx, x, y, width, height, 10);
+    ctx.fill();
+    let cursor = x + 18;
+    const end = x + width - 18;
+    const text = String(seed || 'CES').split('');
+    let index = 0;
+    ctx.fillStyle = '#0B2E59';
+    while (cursor < end) {
+      const code = text[index % text.length].charCodeAt(0);
+      const bar = 3 + code % 8;
+      const gap = 3 + (code >> 2) % 6;
+      ctx.fillRect(cursor, y + 15, Math.min(bar, end - cursor), height - 30);
+      cursor += bar + gap;
+      index += 1;
+    }
+  }
+
+  function fitText(ctx, text, x, y, maxWidth, initialSize, minSize, weight, family) {
+    let size = initialSize;
+    const value = String(text || '');
+    while (size > minSize) {
+      ctx.font = `${weight} ${size}px ${family}`;
+      if (ctx.measureText(value).width <= maxWidth) break;
+      size -= 2;
+    }
+    ctx.fillText(value, x, y);
+  }
+
+  function sanitizeDownloadName(value) {
+    return String(value).replace(/[\\/:*?"<>|#%{}~&]/g, '-').replace(/\s+/g, '-').slice(0, 160);
+  }
+
+  function handleError(error) {
+    const message = error && error.message ? error.message : String(error || 'เกิดข้อผิดพลาด');
+    showToast(message.replace(/^Exception:\s*/, ''), true);
+  }
+
+  function fail(message) {
+    showToast(message, true);
+    return false;
+  }
+
+  let toastTimer;
+  function showToast(message, isError) {
+    const toast = $('#toast');
+    toast.textContent = message;
+    toast.classList.toggle('error', Boolean(isError));
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('show'), 3800);
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value).replace(/[&<>'"]/g, (ch) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+    })[ch]);
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value);
+  }
+})();
