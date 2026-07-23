@@ -13,7 +13,7 @@
 </head>
 <body>
   <main class="app-shell">
-    <header class="top-card">
+    <header class="top-card compact">
       <img class="brand-logo" src="assets/images/logo-transparent.png" alt="Leadership Transformation Journey">
       <div class="top-copy">
         <p class="eyebrow">CES • TEAM JOURNEY PASSPORT</p>
@@ -24,7 +24,7 @@
     </header>
 
     <section class="progress-card" aria-label="ความคืบหน้า">
-      <div class="progress-head"><strong id="progressLabel">1. เลือกกลุ่ม</strong><span id="progressCount">1/4</span></div>
+      <div class="progress-head"><strong id="progressLabel">1. เลือกกลุ่ม</strong><span id="progressCount">1/3</span></div>
       <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
     </section>
 
@@ -32,7 +32,7 @@
       <section class="step active" data-step="1">
         <p class="section-label">STEP 1</p>
         <h2>เลือกเส้นทางของคุณ</h2>
-        <p class="lead">แตะเพียงครั้งเดียว ระบบจะแสดงเวลาและเมนูที่ตรงกับกลุ่ม</p>
+        <p class="lead">แตะ 1 ครั้งเพื่อเลือกกลุ่ม จากนั้นกรอกข้อมูลและยืนยันได้เลย</p>
         <div class="role-list">
           <button class="role-card" type="button" data-role="AM_MNG">
             <span class="role-badge">AM<br>MNG</span>
@@ -56,31 +56,44 @@
           <label>รูปของคุณ</label>
           <div class="photo-row">
             <img id="photoPreview" class="avatar" alt="รูปตัวอย่าง" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' rx='80' fill='%23ece8dc'/%3E%3Ccircle cx='80' cy='60' r='28' fill='%2393a0ad'/%3E%3Cpath d='M27 148c7-37 27-54 53-54s46 17 53 54' fill='%2393a0ad'/%3E%3C/svg%3E">
-            <div><label class="upload-btn" for="photoInput">📷 ถ่ายรูป / เลือกรูป</label><input id="photoInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user"><p class="hint">ระบบจะย่อรูปอัตโนมัติเพื่อให้บันทึกเร็วขึ้น</p></div>
+            <div><label class="upload-btn" for="photoInput">📷 ถ่ายรูป / เลือกรูป</label><input id="photoInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user"><p class="hint">ระบบจะย่อรูปอัตโนมัติเพื่อให้ Check-in เร็วขึ้น</p></div>
           </div>
         </div>
-        <label class="consent-line"><input id="consent" type="checkbox"><span>ยินยอมให้จัดเก็บรูปใน Google Drive สำหรับกิจกรรมนี้</span></label>
+        <div class="info-line static-line">✓ ระบบจะจัดเก็บรูปใน Google Drive สำหรับกิจกรรมนี้โดยอัตโนมัติ</div>
       </section>
 
       <section class="step" data-step="3">
         <p class="section-label">STEP 3</p>
-        <h2>เลือกเมนู</h2>
+        <h2>เมนูและยืนยัน Check-in</h2>
         <p class="lead" id="menuLead"></p>
         <div id="amMenu" hidden>
-          <div class="field"><label for="morningDrink">เครื่องดื่มช่วงเช้า</label><select id="morningDrink"></select></div>
-          <div class="field"><label for="breakfastFood">เมนูอาหาร Morning / Lunch</label><select id="breakfastFood"></select></div>
+          <div class="menu-block">
+            <div class="block-head"><h3>เครื่องดื่มช่วงเช้า</h3><p>เลือกเครื่องดื่มและระดับความหวาน</p></div>
+            <div id="morningDrinkGrid" class="card-grid card-grid-drink"></div>
+            <div class="field compact-field"><label for="morningSweetness">ระดับความหวาน</label><select id="morningSweetness"></select></div>
+          </div>
+          <div class="menu-block">
+            <div class="block-head"><h3>เมนูอาหารเช้า / กลางวัน</h3><p>เลือกเมนูจาก Fave</p></div>
+            <div id="foodGrid" class="card-grid card-grid-food"></div>
+            <p class="tiny-note">* เวอร์ชันนี้เตรียมโครงสร้างรูปเมนูไว้แล้ว หากต้องการใช้รูปจริงจากเว็บไซต์ Fave สามารถแทนที่รูปใน config.js ได้ทันที</p>
+          </div>
         </div>
-        <div id="staffMenu" hidden><div class="field"><label for="afternoonDrink">เครื่องดื่มช่วงบ่าย</label><select id="afternoonDrink"></select></div></div>
-      </section>
+        <div id="staffMenu" hidden>
+          <div class="menu-block">
+            <div class="block-head"><h3>เครื่องดื่มช่วงบ่าย</h3><p>เลือกเครื่องดื่มและระดับความหวาน</p></div>
+            <div id="afternoonDrinkGrid" class="card-grid card-grid-drink"></div>
+            <div class="field compact-field"><label for="afternoonSweetness">ระดับความหวาน</label><select id="afternoonSweetness"></select></div>
+          </div>
+        </div>
 
-      <section class="step" data-step="4">
-        <p class="section-label">STEP 4</p>
-        <h2>ตรวจสอบการเดินทาง</h2>
-        <div id="summary" class="summary-grid"></div>
-        <details class="details-card" open><summary>กำหนดการ</summary><div id="agenda" class="agenda"></div></details>
+        <div class="review-section">
+          <div class="block-head"><h3>สรุปข้อมูล</h3><p>ตรวจสอบข้อมูลก่อนยืนยัน</p></div>
+          <div id="summary" class="summary-grid"></div>
+        </div>
+
+        <details class="details-card" open><summary>กำหนดการกิจกรรม</summary><div id="agenda" class="agenda"></div></details>
         <div id="locations" class="location-list"></div>
-        <label class="consent-line"><input id="agendaRead" type="checkbox"><span>ฉันอ่านกำหนดการและรายละเอียดสถานที่เรียบร้อยแล้ว</span></label>
-        <div class="submit-note">เมื่อกดยืนยัน ระบบจะสร้าง JPEG ขนาด 21 × 7.425 ซม. และบันทึกข้อมูลลง Sheet + Drive ในครั้งเดียว</div>
+        <div class="submit-note">ฉันอ่านกำหนดการและรายละเอียดสถานที่เรียบร้อยแล้ว • เมื่อกดยืนยัน ระบบจะสร้าง Boarding Pass เป็น JPEG และบันทึกข้อมูลลง Sheet + Drive ให้ทันที</div>
       </section>
     </section>
 

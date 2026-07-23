@@ -4,24 +4,36 @@
   const config = window.CES_APP_CONFIG;
   const state = {
     step: 1,
-    totalSteps: 4,
+    totalSteps: 3,
     role: '',
     photoData: '',
     boardingPassData: '',
-    latestResult: null
+    latestResult: null,
+    selections: {
+      morningDrink: '',
+      morningSweetness: '50%',
+      breakfastFood: '',
+      afternoonDrink: '',
+      afternoonSweetness: '50%'
+    }
   };
 
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => Array.from(document.querySelectorAll(selector));
   const client = new AppsScriptFormClient(config);
-  const stepNames = ['เลือกกลุ่ม', 'ข้อมูลผู้เดินทาง', 'เลือกเมนู', 'ตรวจสอบการเดินทาง'];
+  const stepNames = ['เลือกกลุ่ม', 'ข้อมูลผู้เดินทาง', 'เมนูและยืนยัน'];
 
   document.addEventListener('DOMContentLoaded', init);
 
   function init() {
-    populateSelect($('#morningDrink'), config.menus.morningDrinks, 'เลือกเครื่องดื่ม');
-    populateSelect($('#breakfastFood'), config.menus.breakfastFoods, 'เลือกเมนูอาหาร');
-    populateSelect($('#afternoonDrink'), config.menus.afternoonDrinks, 'เลือกเครื่องดื่ม');
+    populateSelect($('#morningSweetness'), config.menus.sweetnessLevels, 'เลือกความหวาน');
+    populateSelect($('#afternoonSweetness'), config.menus.sweetnessLevels, 'เลือกความหวาน');
+    $('#morningSweetness').value = state.selections.morningSweetness;
+    $('#afternoonSweetness').value = state.selections.afternoonSweetness;
+
+    renderOptionGrid('morningDrinkGrid', config.menus.morningDrinks, 'morningDrink', 'drink');
+    renderOptionGrid('foodGrid', config.menus.breakfastFoods, 'breakfastFood', 'food');
+    renderOptionGrid('afternoonDrinkGrid', config.menus.afternoonDrinks, 'afternoonDrink', 'drink');
 
     $$('[data-role]').forEach((button) => button.addEventListener('click', () => selectRole(button.dataset.role)));
     $('#nextBtn').addEventListener('click', nextStep);
@@ -31,13 +43,63 @@
     $('#downloadJpeg').addEventListener('click', downloadBoardingPass);
     $('#printPass').addEventListener('click', () => window.print());
     $('#editAgain').addEventListener('click', editAgain);
+    $('#morningSweetness').addEventListener('change', () => { state.selections.morningSweetness = $('#morningSweetness').value; refreshReview(); });
+    $('#afternoonSweetness').addEventListener('change', () => { state.selections.afternoonSweetness = $('#afternoonSweetness').value; refreshReview(); });
+    $('#employeeId').addEventListener('input', refreshReview);
+    $('#nickname').addEventListener('input', refreshReview);
 
     goToStep(1);
+    refreshReview();
   }
 
   function populateSelect(select, items, placeholder) {
     select.innerHTML = `<option value="">${escapeHtml(placeholder)}</option>` +
       items.map((item) => `<option value="${escapeAttr(item)}">${escapeHtml(item)}</option>`).join('');
+  }
+
+  function renderOptionGrid(containerId, items, stateKey, type) {
+    const container = $('#' + containerId);
+    container.innerHTML = items.map((item, index) => {
+      const name = typeof item === 'string' ? item : item.name;
+      const sub = typeof item === 'string' ? '' : (item.sub || '');
+      const image = typeof item === 'object' ? item.image : '';
+      const badge = typeof item === 'object' ? item.badge : '';
+      const tone = typeof item === 'object' ? item.tone : '';
+      const selected = state.selections[stateKey] === name;
+      const thumbHtml = image
+        ? `<div class="thumb"><img src="${escapeAttr(image)}" alt="${escapeAttr(name)}"></div>`
+        : `<div class="thumb fallback" style="background:${escapeAttr(getThumbBackground(tone, type))}">${escapeHtml(badge || getFallbackMark(type))}<br><span style="font-size:11px;font-weight:700;line-height:1.2;display:block;margin-top:4px">${escapeHtml(type === 'food' ? 'MENU' : 'DRINK')}</span></div>`;
+      return `
+        <button type="button" class="option-card ${selected ? 'selected' : ''}" data-select="${escapeAttr(stateKey)}" data-value="${escapeAttr(name)}" data-index="${index}">
+          ${thumbHtml}
+          <div class="name">${escapeHtml(name)}</div>
+          ${sub ? `<div class="sub">${escapeHtml(sub)}</div>` : ''}
+        </button>`;
+    }).join('');
+
+    container.querySelectorAll('[data-select]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.selections[stateKey] = button.dataset.value;
+        renderOptionGrid(containerId, items, stateKey, type);
+        refreshReview();
+      });
+    });
+  }
+
+  function getFallbackMark(type) {
+    return type === 'food' ? '🍽️' : '☕';
+  }
+
+  function getThumbBackground(tone, type) {
+    if (type === 'drink') return 'linear-gradient(135deg,#0b2e59,#28598a)';
+    const map = {
+      gold: 'linear-gradient(135deg,#cfad61,#f1d79f)',
+      navy: 'linear-gradient(135deg,#0b2e59,#28598a)',
+      sage: 'linear-gradient(135deg,#7d9468,#b9c69a)',
+      rose: 'linear-gradient(135deg,#ad6d75,#dbb3b9)',
+      olive: 'linear-gradient(135deg,#6f7f4c,#b2bf84)'
+    };
+    return map[tone] || 'linear-gradient(135deg,#6f7f4c,#b2bf84)';
   }
 
   function selectRole(role) {
@@ -46,8 +108,9 @@
     $('#amMenu').hidden = role !== 'AM_MNG';
     $('#staffMenu').hidden = role !== 'SUP_STAFF';
     $('#menuLead').textContent = role === 'AM_MNG'
-      ? 'เลือกเครื่องดื่มช่วงเช้าและอาหารสำหรับ Morning / Lunch'
-      : 'เลือกเครื่องดื่มสำหรับ Afternoon Break';
+      ? 'เลือกเครื่องดื่มช่วงเช้า ระดับความหวาน และเมนูอาหารจาก Fave'
+      : 'เลือกเครื่องดื่มช่วงบ่ายและระดับความหวาน';
+    refreshReview();
   }
 
   async function handlePhoto(event) {
@@ -59,7 +122,7 @@
       return;
     }
     try {
-      state.photoData = await compressImage(file, 760, 0.74);
+      state.photoData = await compressImage(file, 640, 0.72);
       $('#photoPreview').src = state.photoData;
     } catch (error) {
       state.photoData = '';
@@ -95,12 +158,11 @@
 
   function nextStep() {
     if (!validateStep(state.step)) return;
-    if (state.step === 3) renderFinalStep();
-    goToStep(Math.min(state.totalSteps, state.step + 1));
+    if (state.step < state.totalSteps) goToStep(state.step + 1);
   }
 
   function previousStep() {
-    goToStep(Math.max(1, state.step - 1));
+    if (state.step > 1) goToStep(state.step - 1);
   }
 
   function goToStep(step) {
@@ -113,6 +175,7 @@
     $('#nextBtn').hidden = step === state.totalSteps;
     $('#submitBtn').hidden = step !== state.totalSteps;
     window.scrollTo({ top: 0, behavior: 'smooth' });
+    refreshReview();
   }
 
   function validateStep(step) {
@@ -122,44 +185,64 @@
       if (!/^[A-Za-z0-9._-]{2,20}$/.test(employeeId)) return fail('กรุณากรอกรหัสพนักงานให้ถูกต้อง');
       if (!$('#nickname').value.trim()) return fail('กรุณากรอกชื่อเล่น');
       if (!state.photoData) return fail('กรุณาถ่ายรูปหรือเลือกรูป');
-      if (!$('#consent').checked) return fail('กรุณายินยอมให้จัดเก็บรูป');
     }
     if (step === 3) {
-      if (state.role === 'AM_MNG' && !$('#morningDrink').value) return fail('กรุณาเลือกเครื่องดื่มช่วงเช้า');
-      if (state.role === 'AM_MNG' && !$('#breakfastFood').value) return fail('กรุณาเลือกเมนูอาหาร');
-      if (state.role === 'SUP_STAFF' && !$('#afternoonDrink').value) return fail('กรุณาเลือกเครื่องดื่มช่วงบ่าย');
+      if (state.role === 'AM_MNG' && !state.selections.morningDrink) return fail('กรุณาเลือกเครื่องดื่มช่วงเช้า');
+      if (state.role === 'AM_MNG' && !state.selections.morningSweetness) return fail('กรุณาเลือกระดับความหวาน');
+      if (state.role === 'AM_MNG' && !state.selections.breakfastFood) return fail('กรุณาเลือกเมนูอาหาร');
+      if (state.role === 'SUP_STAFF' && !state.selections.afternoonDrink) return fail('กรุณาเลือกเครื่องดื่มช่วงบ่าย');
+      if (state.role === 'SUP_STAFF' && !state.selections.afternoonSweetness) return fail('กรุณาเลือกระดับความหวาน');
     }
-    if (step === 4 && !$('#agendaRead').checked) return fail('กรุณายืนยันว่าอ่านรายละเอียดแล้ว');
     return true;
   }
 
-  function renderFinalStep() {
+  function refreshReview() {
+    renderAgenda();
+    renderLocations();
+    renderSummary();
+  }
+
+  function renderAgenda() {
     const agenda = config.agenda[state.role] || [];
     $('#agenda').innerHTML = agenda.map(([time, title]) => `
       <div class="agenda-row"><div class="agenda-time">${escapeHtml(time)}</div><div class="agenda-title">${escapeHtml(title)}</div></div>
     `).join('');
+  }
 
+  function renderLocations() {
     const locations = [config.event.morningLocation];
     if (state.role === 'AM_MNG' || config.event.showDinnerForStaff) locations.push(config.event.dinnerLocation);
     $('#locations').innerHTML = locations.map((location) => `
       <article class="location-card">
-        <div class="tag">${escapeHtml(location.label)}</div>
-        <h3>${escapeHtml(location.name)}</h3>
-        <p>เวลา ${escapeHtml(location.time)}</p>
-        <p>${escapeHtml(location.address)}</p>
-        <a class="map-link" href="${escapeAttr(location.mapUrl)}" target="_blank" rel="noopener">เปิด Google Maps ↗</a>
+        <img src="${escapeAttr(location.image)}" alt="${escapeAttr(location.name)}">
+        <div class="location-body">
+          <div class="tag">${escapeHtml(location.label)}</div>
+          <h3>${escapeHtml(location.name)}</h3>
+          <p>เวลา ${escapeHtml(location.time)}</p>
+          <p>${escapeHtml(location.address)}</p>
+          <a class="map-link" href="${escapeAttr(location.mapUrl)}" target="_blank" rel="noopener">เปิด Google Maps ↗</a>
+        </div>
       </article>
     `).join('');
+  }
 
+  function renderSummary() {
     const items = [
-      ['กลุ่ม', state.role === 'AM_MNG' ? 'AM / MNG' : 'SUP / STAFF'],
-      ['รหัสพนักงาน', $('#employeeId').value.trim().toUpperCase()],
-      ['ชื่อเล่น', $('#nickname').value.trim()]
+      ['กลุ่ม', state.role === 'AM_MNG' ? 'AM / MNG' : state.role === 'SUP_STAFF' ? 'SUP / STAFF' : '-'],
+      ['รหัสพนักงาน', $('#employeeId').value.trim().toUpperCase() || '-'],
+      ['ชื่อเล่น', $('#nickname').value.trim() || '-']
     ];
     if (state.role === 'AM_MNG') {
-      items.push(['เครื่องดื่ม', $('#morningDrink').value], ['อาหาร', $('#breakfastFood').value]);
-    } else {
-      items.push(['เครื่องดื่ม', $('#afternoonDrink').value]);
+      items.push(
+        ['เครื่องดื่ม', state.selections.morningDrink || '-'],
+        ['ความหวาน', state.selections.morningSweetness || '-'],
+        ['อาหาร', state.selections.breakfastFood || '-']
+      );
+    } else if (state.role === 'SUP_STAFF') {
+      items.push(
+        ['เครื่องดื่ม', state.selections.afternoonDrink || '-'],
+        ['ความหวาน', state.selections.afternoonSweetness || '-']
+      );
     }
     $('#summary').innerHTML = items.map(([label, value]) => `
       <div class="summary-item"><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>
@@ -167,7 +250,7 @@
   }
 
   async function submitForm() {
-    if (!validateStep(4)) return;
+    if (!validateStep(3)) return;
 
     const button = $('#submitBtn');
     button.disabled = true;
@@ -191,9 +274,11 @@
         boardingPassData: state.boardingPassData,
         consent: true,
         agendaRead: true,
-        morningDrink: state.role === 'AM_MNG' ? $('#morningDrink').value : '',
-        breakfastFood: state.role === 'AM_MNG' ? $('#breakfastFood').value : '',
-        afternoonDrink: state.role === 'SUP_STAFF' ? $('#afternoonDrink').value : ''
+        morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
+        morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
+        breakfastFood: state.role === 'AM_MNG' ? state.selections.breakfastFood : '',
+        afternoonDrink: state.role === 'SUP_STAFF' ? state.selections.afternoonDrink : '',
+        afternoonSweetness: state.role === 'SUP_STAFF' ? state.selections.afternoonSweetness : ''
       });
 
       state.latestResult = result;
@@ -220,9 +305,11 @@
       eventDateThai: config.event.dateThai,
       route: state.role === 'AM_MNG' ? 'FAVE → WAKE UP' : 'FAVE',
       selections: {
-        morningDrink: state.role === 'AM_MNG' ? $('#morningDrink').value : '',
-        breakfastFood: state.role === 'AM_MNG' ? $('#breakfastFood').value : '',
-        afternoonDrink: state.role === 'SUP_STAFF' ? $('#afternoonDrink').value : ''
+        morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
+        morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
+        breakfastFood: state.role === 'AM_MNG' ? state.selections.breakfastFood : '',
+        afternoonDrink: state.role === 'SUP_STAFF' ? state.selections.afternoonDrink : '',
+        afternoonSweetness: state.role === 'SUP_STAFF' ? state.selections.afternoonSweetness : ''
       }
     };
   }
@@ -246,7 +333,7 @@
     $('#appCard').hidden = false;
     $('.progress-card').hidden = false;
     $('#bottomActions').hidden = false;
-    goToStep(4);
+    goToStep(3);
   }
 
   function showSaving(text) {
@@ -294,134 +381,136 @@
     const [photo, logo] = await Promise.all([loadImage(photoData), loadImage(appConfig.logoUrl)]);
 
     const navy = '#0B2E59';
-    const navy2 = '#174778';
+    const navy2 = '#184a78';
     const gold = '#C7A252';
-    const cream = '#F8F2E5';
+    const cream = '#F7F1E5';
     const paper = '#FFFDF8';
-    const sage = '#91A083';
-    const muted = '#667587';
-    const stubX = 1860;
+    const muted = '#647587';
 
-    ctx.fillStyle = cream;
+    const bg = ctx.createLinearGradient(0, 0, width, height);
+    bg.addColorStop(0, '#faf6ee');
+    bg.addColorStop(1, '#efe7d7');
+    ctx.fillStyle = bg;
     ctx.fillRect(0, 0, width, height);
+
     ctx.fillStyle = paper;
-    roundRect(ctx, 36, 36, width - 72, height - 72, 42);
+    roundRect(ctx, 30, 30, width - 60, height - 60, 40);
     ctx.fill();
 
-    ctx.fillStyle = navy;
-    roundRect(ctx, 36, 36, width - 72, 126, 42);
+    const hero = ctx.createLinearGradient(0, 0, width, 0);
+    hero.addColorStop(0, navy);
+    hero.addColorStop(1, navy2);
+    ctx.fillStyle = hero;
+    roundRect(ctx, 30, 30, width - 60, 180, 40);
     ctx.fill();
-    ctx.fillRect(36, 110, width - 72, 52);
-    ctx.fillStyle = gold;
-    ctx.fillRect(36, 162, width - 72, 8);
 
     ctx.save();
     ctx.beginPath();
-    ctx.arc(108, 101, 49, 0, Math.PI * 2);
+    ctx.arc(116, 120, 62, 0, Math.PI * 2);
     ctx.clip();
-    ctx.fillStyle = '#FFFDF8';
-    ctx.fillRect(59, 52, 98, 98);
-    ctx.drawImage(logo, 59, 52, 98, 98);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(54, 58, 124, 124);
+    ctx.drawImage(logo, 54, 58, 124, 124);
     ctx.restore();
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '800 31px Tahoma, Arial, sans-serif';
-    ctx.fillText('CES • TEAM JOURNEY PASSPORT', 180, 105);
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#EED99F';
-    ctx.font = '700 25px Tahoma, Arial, sans-serif';
-    ctx.fillText('LEAD • INSPIRE • ELEVATE', width - 104, 101);
-    ctx.textAlign = 'left';
+    ctx.fillStyle = '#f0d999';
+    ctx.font = '800 28px Tahoma, Arial, sans-serif';
+    ctx.fillText('CES • TEAM JOURNEY PASSPORT', 210, 84);
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 70px Georgia, serif';
+    ctx.fillText('Journey Check-in', 210, 154);
 
-    drawJourneyDecoration(ctx, 70, height - 180, 1700, 105, sage, gold);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 20px Tahoma, Arial, sans-serif';
+    ctx.fillText('LEAD • INSPIRE • ELEVATE', width - 420, 156);
 
-    ctx.fillStyle = '#EEF0E7';
-    roundRect(ctx, 105, 220, 322, 432, 34);
+    // left photo block
+    ctx.fillStyle = '#f4efe4';
+    roundRect(ctx, 80, 260, 340, 465, 28);
     ctx.fill();
     ctx.save();
-    roundRect(ctx, 125, 240, 282, 330, 28);
+    roundRect(ctx, 104, 286, 292, 350, 24);
     ctx.clip();
-    drawCoverImage(ctx, photo, 125, 240, 282, 330);
+    drawCoverImage(ctx, photo, 104, 286, 292, 350);
     ctx.restore();
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 6;
-    roundRect(ctx, 125, 240, 282, 330, 28);
-    ctx.stroke();
-    ctx.fillStyle = navy;
-    ctx.font = '900 22px Tahoma, Arial, sans-serif';
-    ctx.fillText('PASSENGER', 150, 618);
-    ctx.fillStyle = muted;
-    ctx.font = '600 22px Tahoma, Arial, sans-serif';
-    ctx.fillText(`ID ${result.employeeId}`, 150, 650);
-
-    ctx.fillStyle = gold;
-    ctx.font = '900 24px Tahoma, Arial, sans-serif';
-    ctx.fillText('BOARDING PASS • LEADERSHIP TRANSFORMATION JOURNEY 2026', 485, 235);
-    ctx.fillStyle = navy;
-    fitText(ctx, String(result.nickname || '').toUpperCase(), 485, 345, 1230, 90, 48, '800', 'Georgia, serif');
-    ctx.fillStyle = muted;
-    ctx.font = '700 27px Tahoma, Arial, sans-serif';
-    ctx.fillText(`PASSENGER ID  ${result.employeeId}`, 490, 398);
-
-    ctx.fillStyle = navy;
-    ctx.font = '900 74px Georgia, serif';
-    ctx.fillText('CES', 495, 505);
-    ctx.textAlign = 'right';
-    ctx.fillText('LTJ', 1720, 505);
-    ctx.textAlign = 'left';
     ctx.strokeStyle = gold;
     ctx.lineWidth = 5;
-    ctx.setLineDash([24, 18]);
-    ctx.beginPath();
-    ctx.moveTo(690, 480);
-    ctx.lineTo(1518, 480);
+    roundRect(ctx, 104, 286, 292, 350, 24);
     ctx.stroke();
-    ctx.setLineDash([]);
-    drawPlane(ctx, 1090, 478, navy, gold);
-
-    const metaItems = [
-      ['GROUP', result.roleLabel], ['DATE', result.eventDate],
-      ['BOARDING', result.departure], ['GATE', result.gate]
-    ];
-    metaItems.forEach((item, index) => drawMetaBlock(ctx, 485 + index * 298, 560, 270, 105, item[0], item[1], navy, muted, gold));
-
-    const serviceText = result.role === 'AM_MNG'
-      ? [result.selections.morningDrink, result.selections.breakfastFood].filter(Boolean).join(' • ')
-      : result.selections.afternoonDrink;
     ctx.fillStyle = navy;
     ctx.font = '900 21px Tahoma, Arial, sans-serif';
-    ctx.fillText('JOURNEY SERVICE', 485, 716);
+    ctx.fillText('PASSENGER', 130, 680);
     ctx.fillStyle = muted;
-    fitText(ctx, serviceText || 'CES TEAM EXPERIENCE', 485, 753, 1180, 24, 18, '600', 'Tahoma, Arial, sans-serif');
+    ctx.font = '700 22px Tahoma, Arial, sans-serif';
+    ctx.fillText('ID ' + result.employeeId, 130, 713);
 
-    ctx.strokeStyle = '#C8C4BA';
+    // middle information block
+    ctx.fillStyle = gold;
+    ctx.font = '800 20px Tahoma, Arial, sans-serif';
+    ctx.fillText('BOARDING PASS TEMPLATE', 480, 272);
+    ctx.fillStyle = navy;
+    fitText(ctx, String(result.nickname || '').toUpperCase(), 480, 350, 1120, 84, 48, '900', 'Georgia, serif');
+    ctx.fillStyle = muted;
+    ctx.font = '700 26px Tahoma, Arial, sans-serif';
+    ctx.fillText('EMPLOYEE ID  ' + result.employeeId, 480, 392);
+
+    const metaItems = [
+      ['GROUP', result.roleLabel],
+      ['DATE', result.eventDate],
+      ['BOARDING', result.departure],
+      ['ROUTE', result.route],
+      ['GATE', result.gate],
+      ['ARRIVAL', result.arrival]
+    ];
+    metaItems.forEach((item, index) => {
+      const col = index % 3;
+      const row = Math.floor(index / 3);
+      drawMetaBlock(ctx, 480 + col * 310, 440 + row * 118, 284, 96, item[0], item[1], navy, muted, gold);
+    });
+
+    const serviceLines = result.role === 'AM_MNG'
+      ? [
+        'DRINK  ' + result.selections.morningDrink,
+        'SWEETNESS  ' + result.selections.morningSweetness,
+        'FOOD  ' + result.selections.breakfastFood
+      ]
+      : [
+        'DRINK  ' + result.selections.afternoonDrink,
+        'SWEETNESS  ' + result.selections.afternoonSweetness,
+        'SESSION  AFTERNOON JOURNEY'
+      ];
+    ctx.fillStyle = navy;
+    ctx.font = '900 20px Tahoma, Arial, sans-serif';
+    ctx.fillText('JOURNEY SERVICE', 480, 720);
+    ctx.fillStyle = muted;
+    serviceLines.forEach((line, idx) => fitText(ctx, line, 480, 752 + idx * 28, 1180, 22, 18, '700', 'Tahoma, Arial, sans-serif'));
+
+    // right stub
+    const stubX = 1820;
+    ctx.strokeStyle = '#d6cfbe';
     ctx.lineWidth = 4;
-    ctx.setLineDash([16, 16]);
+    ctx.setLineDash([15, 14]);
     ctx.beginPath();
-    ctx.moveTo(stubX, 188);
+    ctx.moveTo(stubX, 214);
     ctx.lineTo(stubX, height - 58);
     ctx.stroke();
     ctx.setLineDash([]);
 
-    const gradient = ctx.createLinearGradient(stubX, 0, width, height);
-    gradient.addColorStop(0, navy);
-    gradient.addColorStop(1, navy2);
-    ctx.fillStyle = gradient;
-    roundRect(ctx, stubX + 18, 192, width - stubX - 54, height - 238, 30);
+    ctx.fillStyle = navy;
+    roundRect(ctx, stubX + 20, 230, width - stubX - 50, 560, 28);
     ctx.fill();
-
-    ctx.fillStyle = '#EED99F';
-    ctx.font = '900 25px Tahoma, Arial, sans-serif';
-    ctx.fillText('BOARDING PASS', stubX + 70, 255);
-    ctx.fillStyle = '#FFFFFF';
-    fitText(ctx, result.ticketId, stubX + 70, 315, 465, 34, 21, '800', 'Tahoma, Arial, sans-serif');
-    drawStubLine(ctx, stubX + 70, 365, 'PASSENGER', result.nickname, gold);
-    drawStubLine(ctx, stubX + 70, 445, 'ROUTE', result.route, gold);
-    drawStubLine(ctx, stubX + 70, 525, 'BOARDING', `${result.departure} • ${result.gate}`, gold);
-    drawBarcode(ctx, stubX + 70, 610, 450, 112, result.ticketId);
-    ctx.fillStyle = '#EED99F';
-    ctx.font = '700 18px Tahoma, Arial, sans-serif';
-    ctx.fillText('REFLECT • CONNECT • INSPIRE • APPRECIATE', stubX + 70, 768);
+    ctx.fillStyle = '#fff';
+    ctx.font = '900 26px Tahoma, Arial, sans-serif';
+    ctx.fillText('BOARDING PASS', stubX + 60, 286);
+    ctx.fillStyle = '#f0d999';
+    fitText(ctx, result.ticketId, stubX + 60, 328, 480, 30, 20, '800', 'Tahoma, Arial, sans-serif');
+    drawStubLine(ctx, stubX + 60, 390, 'PASSENGER', result.nickname, gold);
+    drawStubLine(ctx, stubX + 60, 470, 'ROUTE', result.route, gold);
+    drawStubLine(ctx, stubX + 60, 550, 'BOARDING', result.departure + ' • ' + result.gate, gold);
+    drawBarcode(ctx, stubX + 60, 620, 445, 108, result.ticketId);
+    ctx.fillStyle = '#f0d999';
+    ctx.font = '700 17px Tahoma, Arial, sans-serif';
+    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', stubX + 60, 765);
 
     return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.90), Number(exp.dpi || 300));
   }
@@ -479,35 +568,35 @@
   }
 
   function drawMetaBlock(ctx, x, y, width, height, label, value, navy, muted, gold) {
-    ctx.fillStyle = '#F7F2E7';
+    ctx.fillStyle = '#faf6ee';
     roundRect(ctx, x, y, width, height, 18);
     ctx.fill();
     ctx.fillStyle = gold;
-    ctx.fillRect(x, y, 7, height);
+    ctx.fillRect(x, y, 6, height);
     ctx.fillStyle = muted;
-    ctx.font = '800 17px Tahoma, Arial, sans-serif';
-    ctx.fillText(label, x + 26, y + 34);
+    ctx.font = '800 16px Tahoma, Arial, sans-serif';
+    ctx.fillText(label, x + 24, y + 28);
     ctx.fillStyle = navy;
-    fitText(ctx, value, x + 26, y + 76, width - 44, 29, 19, '900', 'Tahoma, Arial, sans-serif');
+    fitText(ctx, value, x + 24, y + 67, width - 44, 26, 18, '900', 'Tahoma, Arial, sans-serif');
   }
 
   function drawStubLine(ctx, x, y, label, value, gold) {
-    ctx.fillStyle = '#D0D9E4';
+    ctx.fillStyle = '#d0dae5';
     ctx.font = '700 18px Tahoma, Arial, sans-serif';
     ctx.fillText(label, x, y);
-    ctx.fillStyle = '#FFFFFF';
-    fitText(ctx, value, x, y + 35, 455, 27, 19, '900', 'Tahoma, Arial, sans-serif');
+    ctx.fillStyle = '#ffffff';
+    fitText(ctx, value, x, y + 34, 450, 26, 18, '900', 'Tahoma, Arial, sans-serif');
     ctx.strokeStyle = gold;
     ctx.globalAlpha = 0.45;
     ctx.beginPath();
-    ctx.moveTo(x, y + 49);
-    ctx.lineTo(x + 455, y + 49);
+    ctx.moveTo(x, y + 48);
+    ctx.lineTo(x + 450, y + 48);
     ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
   function drawBarcode(ctx, x, y, width, height, seed) {
-    ctx.fillStyle = '#FFFFFF';
+    ctx.fillStyle = '#fff';
     roundRect(ctx, x, y, width, height, 10);
     ctx.fill();
     let cursor = x + 18;
@@ -523,40 +612,6 @@
       cursor += bar + gap;
       index += 1;
     }
-  }
-
-  function drawPlane(ctx, x, y, navy, gold) {
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.fillStyle = navy;
-    ctx.beginPath();
-    ctx.moveTo(-55, -5); ctx.lineTo(44, -5); ctx.lineTo(80, -36); ctx.lineTo(95, -31);
-    ctx.lineTo(74, 0); ctx.lineTo(95, 31); ctx.lineTo(80, 36); ctx.lineTo(44, 5);
-    ctx.lineTo(-55, 5); ctx.lineTo(-86, 23); ctx.lineTo(-96, 18); ctx.lineTo(-74, 0);
-    ctx.lineTo(-96, -18); ctx.lineTo(-86, -23); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = gold; ctx.beginPath(); ctx.arc(0, 0, 8, 0, Math.PI * 2); ctx.fill(); ctx.restore();
-  }
-
-  function drawJourneyDecoration(ctx, x, y, width, height, sage, gold) {
-    ctx.save();
-    ctx.globalAlpha = 0.28;
-    ctx.strokeStyle = sage;
-    ctx.lineWidth = 5;
-    ctx.beginPath();
-    ctx.moveTo(x, y + height);
-    for (let i = 0; i <= 12; i += 1) {
-      const px = x + width / 12 * i;
-      const py = y + height - (i % 3 === 0 ? 68 : i % 2 === 0 ? 42 : 22);
-      ctx.lineTo(px, py);
-    }
-    ctx.stroke();
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(x, y + height - 8);
-    ctx.bezierCurveTo(x + width * .25, y + 12, x + width * .62, y + height + 5, x + width, y + 20);
-    ctx.stroke();
-    ctx.restore();
   }
 
   function fitText(ctx, text, x, y, maxWidth, initialSize, minSize, weight, family) {

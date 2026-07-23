@@ -1,7 +1,7 @@
 /** Public frontend configuration. The page renders immediately from this file. */
 window.CES_APP_CONFIG = Object.freeze({
-  backendUrl: 'https://script.google.com/macros/s/AKfycbz3hLT_SJMngqs5DJtRg2qRTUTWvPTc450ORz_CwfibYD2g9nUdPeo_DadAIcLcajd34g/exec',
-  channel: 'CES_BOARDING_PASS_FORM_V2',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbzjJGx1Z5PKcTEKJCD0rjoLh7YYl_7LlqXRF2RtamtwUbjrDoMOA3zd84zEuukCxT8A_Q/exec',
+  channel: 'CES_BOARDING_PASS_FORM_V3',
   requestTimeoutMs: 120000,
   logoUrl: 'assets/images/logo-transparent.png',
   export: {
@@ -25,31 +25,50 @@ window.CES_APP_CONFIG = Object.freeze({
       name: 'Fave Casual Dining and Working Space',
       time: '09:30–17:00',
       address: 'ซอยรัชดาภิเษก 32 แยก 2 เขตจตุจักร',
-      mapUrl: 'https://maps.app.goo.gl/GbaLX3xW7fM8seFM6'
+      mapUrl: 'https://maps.app.goo.gl/GbaLX3xW7fM8seFM6',
+      image: 'assets/images/location-fave.png'
     },
     dinnerLocation: {
       label: 'DINNER',
       name: 'Wake Up - Cafe and Restaurant',
       time: '18:00–23:00',
       address: '171/2 ถนนโชคชัย 4 ซอย 7 (ซอยลาดพร้าว 53)',
-      mapUrl: 'https://maps.app.goo.gl/kxmnHsuNfaaG4uQE8'
+      mapUrl: 'https://maps.app.goo.gl/kxmnHsuNfaaG4uQE8',
+      image: 'assets/images/location-wakeup.jpg'
     }
   },
   menus: {
+    sweetnessLevels: ['ไม่หวาน', '25%', '50%', '75%', '100%'],
     morningDrinks: [
-      'Ice Americano', 'Ice Latte', 'Ice Cappuccino', 'Orange Americano',
-      'Coconut Americano', 'Matcha Premium', 'Cocoa', 'Peach Tea',
-      'Fresh Orange Juice'
+      { name: 'Ice Americano', badge: '☕' },
+      { name: 'Ice Latte', badge: '🥛' },
+      { name: 'Ice Cappuccino', badge: '☕' },
+      { name: 'Orange Americano', badge: '🍊' },
+      { name: 'Coconut Americano', badge: '🥥' },
+      { name: 'Matcha Premium', badge: '🍵' },
+      { name: 'Cocoa', badge: '🍫' },
+      { name: 'Peach Tea', badge: '🍑' },
+      { name: 'Fresh Orange Juice', badge: '🧃' }
     ],
     breakfastFoods: [
-      'ข้าวผัดกระเทียมเนื้อย่างจิ้มแจ่ว', 'ผัดไทยกุ้งสด',
-      'ข้าวสามชั้นคั่วพริกเกลือ', 'Penne Pink Sauce Salmon',
-      'Linguine Truffle Cream Sauce', 'Spaghetti Aglio Olio'
+      { name: 'ข้าวผัดกระเทียมเนื้อย่างจิ้มแจ่ว', sub: 'Fave menu preview', tone: 'gold' },
+      { name: 'ผัดไทยกุ้งสด', sub: 'Fave menu preview', tone: 'navy' },
+      { name: 'ข้าวสามชั้นคั่วพริกเกลือ', sub: 'Fave menu preview', tone: 'sage' },
+      { name: 'Penne Pink Sauce Salmon', sub: 'Fave menu preview', tone: 'rose' },
+      { name: 'Linguine Truffle Cream Sauce', sub: 'Fave menu preview', tone: 'olive' },
+      { name: 'Spaghetti Aglio Olio', sub: 'Fave menu preview', tone: 'gold' }
     ],
     afternoonDrinks: [
-      'Ice Americano', 'Ice Latte', 'Ice Cappuccino', 'Orange Americano',
-      'Coconut Americano', 'Matcha Premium', 'Cocoa', 'Dark Cocoa',
-      'Mint Chocolate', 'Plum Soda'
+      { name: 'Ice Americano', badge: '☕' },
+      { name: 'Ice Latte', badge: '🥛' },
+      { name: 'Ice Cappuccino', badge: '☕' },
+      { name: 'Orange Americano', badge: '🍊' },
+      { name: 'Coconut Americano', badge: '🥥' },
+      { name: 'Matcha Premium', badge: '🍵' },
+      { name: 'Cocoa', badge: '🍫' },
+      { name: 'Dark Cocoa', badge: '🍫' },
+      { name: 'Mint Chocolate', badge: '🌿' },
+      { name: 'Plum Soda', badge: '🥤' }
     ]
   },
   agenda: {
