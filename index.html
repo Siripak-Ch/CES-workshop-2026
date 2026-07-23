@@ -3,154 +3,115 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0B2E59">
-  <meta name="description" content="CES Leadership Transformation Journey pre-event check-in">
+  <meta name="theme-color" content="#0b2e59">
+  <meta name="description" content="CES Leadership Transformation Journey check-in and boarding pass">
   <title>CES Journey Check-in</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/images/favicon-32.png">
+  <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
-  <main class="shell">
-    <section class="hero" aria-labelledby="pageTitle">
-      <div class="hero-copy">
+  <main class="app-shell">
+    <header class="top-card">
+      <img class="brand-logo" src="assets/images/logo-transparent.png" alt="Leadership Transformation Journey">
+      <div class="top-copy">
         <p class="eyebrow">CES • TEAM JOURNEY PASSPORT</p>
-        <h1 id="pageTitle">Leadership<br>Transformation Journey</h1>
-        <p class="hero-description">Pre-event check-in เพื่อเลือกเส้นทาง เมนู และรับ Boarding Pass ของคุณ</p>
-        <div class="hero-meta" aria-label="รายละเอียดกิจกรรม">
-          <span>31 JUL 2026</span>
-          <span>FAVE • BANGKOK</span>
-        </div>
+        <h1>Journey Check-in</h1>
+        <p>ลงทะเบียนล่วงหน้า เลือกเมนู และรับ Boarding Pass</p>
+        <div class="meta-row"><span>31 JUL 2026</span><span>FAVE • BANGKOK</span></div>
       </div>
-      <div class="passport-stamp" aria-hidden="true">LEAD<br>INSPIRE<br>ELEVATE</div>
+    </header>
+
+    <section class="progress-card" aria-label="ความคืบหน้า">
+      <div class="progress-head"><strong id="progressLabel">1. เลือกกลุ่ม</strong><span id="progressCount">1/4</span></div>
+      <div class="progress-track"><div id="progressBar" class="progress-fill"></div></div>
     </section>
 
-    <section class="journey-progress" id="progressWrap" aria-label="ความคืบหน้าการลงทะเบียน">
-      <div class="progress-copy">
-        <strong id="progressLabel">กำลังเชื่อมต่อ</strong>
-        <span>Journey Check-in</span>
-      </div>
-      <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
-      <div class="step-dots" id="stepDots" aria-hidden="true">
-        <span data-progress-step="1">1</span><span data-progress-step="2">2</span><span data-progress-step="3">3</span><span data-progress-step="4">4</span><span data-progress-step="5">5</span>
-      </div>
-    </section>
-
-    <section class="card" id="appCard">
-      <div class="connection-screen" id="connectionScreen" role="status" aria-live="polite">
-        <div class="loader-ring" id="connectionLoader" aria-hidden="true"></div>
-        <p class="step-kicker">SYSTEM CONNECTION</p>
-        <h2 id="connectionTitle">กำลังเตรียม Passport ของคุณ</h2>
-        <p class="lead" id="connectionDetail">กำลังเชื่อมต่อระบบลงทะเบียน โปรดรอสักครู่…</p>
-        <button class="btn btn-primary retry-button" id="retryConnection" type="button" hidden>ลองเชื่อมต่ออีกครั้ง</button>
-      </div>
-
-      <div class="step" data-step="1">
-        <p class="step-kicker">STEP 01 • SELECT YOUR ROUTE</p>
-        <h2>คุณอยู่ในกลุ่มใด?</h2>
-        <p class="lead">เลือกให้ตรงกับตำแหน่ง เพื่อแสดงเวลา เมนู และกำหนดการของคุณ</p>
-        <div class="role-grid">
+    <section class="form-card" id="appCard">
+      <section class="step active" data-step="1">
+        <p class="section-label">STEP 1</p>
+        <h2>เลือกเส้นทางของคุณ</h2>
+        <p class="lead">แตะเพียงครั้งเดียว ระบบจะแสดงเวลาและเมนูที่ตรงกับกลุ่ม</p>
+        <div class="role-list">
           <button class="role-card" type="button" data-role="AM_MNG">
-            <span class="role-icon">🧭</span>
-            <span class="role-copy"><strong>AM / MNG</strong><small>Check-in 09:30 น.</small><span>เครื่องดื่มช่วงเช้า + อาหาร และกิจกรรมเต็มวัน</span></span>
-            <span class="select-mark">✓</span>
+            <span class="role-badge">AM<br>MNG</span>
+            <span class="role-text"><strong>AM / MNG</strong><small>เริ่ม 09:30 น.</small><span>เครื่องดื่มช่วงเช้า + อาหาร + กิจกรรมเต็มวัน</span></span>
+            <span class="check-dot">✓</span>
           </button>
           <button class="role-card" type="button" data-role="SUP_STAFF">
-            <span class="role-icon">🎒</span>
-            <span class="role-copy"><strong>SUP / STAFF</strong><small>Check-in 13:00 น.</small><span>เครื่องดื่มช่วงบ่าย และกิจกรรม 13:00–17:00 น.</span></span>
-            <span class="select-mark">✓</span>
+            <span class="role-badge">SUP<br>STAFF</span>
+            <span class="role-text"><strong>SUP / STAFF</strong><small>เริ่ม 13:00 น.</small><span>เครื่องดื่มช่วงบ่าย + กิจกรรม 13:00–17:00 น.</span></span>
+            <span class="check-dot">✓</span>
           </button>
         </div>
-        <div class="actions"><span class="action-spacer"></span><button class="btn btn-primary" type="button" data-next>เดินทางต่อ <span>→</span></button></div>
-      </div>
+      </section>
 
-      <div class="step" data-step="2">
-        <p class="step-kicker">STEP 02 • PASSENGER DETAILS</p>
+      <section class="step" data-step="2">
+        <p class="section-label">STEP 2</p>
         <h2>ข้อมูลผู้เดินทาง</h2>
-        <p class="lead">ใช้รหัสพนักงานสำหรับตรวจสอบข้อมูล หากส่งซ้ำระบบจะอัปเดตรายการเดิม</p>
-        <div class="grid-2">
-          <div class="field">
-            <label for="employeeId">รหัสพนักงาน</label>
-            <input id="employeeId" type="text" maxlength="20" autocomplete="off" placeholder="เช่น 00123" inputmode="text">
-          </div>
-          <div class="field">
-            <label for="nickname">ชื่อเล่น</label>
-            <input id="nickname" type="text" maxlength="40" autocomplete="name" placeholder="ชื่อบน Boarding Pass">
-          </div>
-        </div>
+        <div class="field"><label for="employeeId">รหัสพนักงาน</label><input id="employeeId" type="text" maxlength="20" autocomplete="off" placeholder="เช่น 00123"></div>
+        <div class="field"><label for="nickname">ชื่อเล่น</label><input id="nickname" type="text" maxlength="40" autocomplete="name" placeholder="ชื่อบน Boarding Pass"></div>
         <div class="field">
-          <label for="photoInput">รูปของคุณ</label>
-          <div class="photo-box">
-            <img class="avatar" id="photoPreview" alt="ตัวอย่างรูป" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23e8e5db'/%3E%3Ccircle cx='80' cy='61' r='30' fill='%2393a0ad'/%3E%3Cpath d='M30 145c6-35 25-51 50-51s44 16 50 51' fill='%2393a0ad'/%3E%3C/svg%3E">
-            <div class="photo-copy">
-              <label class="upload-button" for="photoInput">ถ่ายรูปหรือเลือกรูป</label>
-              <input class="file-input" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
-              <p class="hint">แนะนำรูปหน้าตรง ระบบจะย่อรูปก่อนส่ง รองรับ JPG, PNG และ WebP</p>
-            </div>
+          <label>รูปของคุณ</label>
+          <div class="photo-row">
+            <img id="photoPreview" class="avatar" alt="รูปตัวอย่าง" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' rx='80' fill='%23ece8dc'/%3E%3Ccircle cx='80' cy='60' r='28' fill='%2393a0ad'/%3E%3Cpath d='M27 148c7-37 27-54 53-54s46 17 53 54' fill='%2393a0ad'/%3E%3C/svg%3E">
+            <div><label class="upload-btn" for="photoInput">📷 ถ่ายรูป / เลือกรูป</label><input id="photoInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user"><p class="hint">ระบบจะย่อรูปอัตโนมัติเพื่อให้บันทึกเร็วขึ้น</p></div>
           </div>
         </div>
-        <label class="check-line"><input id="consent" type="checkbox"><span>ยินยอมให้จัดเก็บรูปใน Google Drive เพื่อใช้สำหรับการลงทะเบียนกิจกรรมนี้</span></label>
-        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← ย้อนกลับ</button><button class="btn btn-primary" type="button" data-next>เลือกเมนู →</button></div>
-      </div>
+        <label class="consent-line"><input id="consent" type="checkbox"><span>ยินยอมให้จัดเก็บรูปใน Google Drive สำหรับกิจกรรมนี้</span></label>
+      </section>
 
-      <div class="step" data-step="3">
-        <p class="step-kicker">STEP 03 • JOURNEY MENU</p>
-        <h2>เลือกเมนูของคุณ</h2>
+      <section class="step" data-step="3">
+        <p class="section-label">STEP 3</p>
+        <h2>เลือกเมนู</h2>
         <p class="lead" id="menuLead"></p>
         <div id="amMenu" hidden>
-          <div class="grid-2">
-            <div class="field"><label for="morningDrink">เครื่องดื่มช่วงเช้า</label><select id="morningDrink"></select></div>
-            <div class="field"><label for="breakfastFood">เมนูอาหาร Morning / Lunch</label><select id="breakfastFood"></select></div>
-          </div>
+          <div class="field"><label for="morningDrink">เครื่องดื่มช่วงเช้า</label><select id="morningDrink"></select></div>
+          <div class="field"><label for="breakfastFood">เมนูอาหาร Morning / Lunch</label><select id="breakfastFood"></select></div>
         </div>
-        <div id="staffMenu" hidden>
-          <div class="field"><label for="afternoonDrink">เครื่องดื่มช่วงบ่าย</label><select id="afternoonDrink"></select></div>
-        </div>
-        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← ย้อนกลับ</button><button class="btn btn-primary" type="button" data-next>ดูกำหนดการ →</button></div>
-      </div>
+        <div id="staffMenu" hidden><div class="field"><label for="afternoonDrink">เครื่องดื่มช่วงบ่าย</label><select id="afternoonDrink"></select></div></div>
+      </section>
 
-      <div class="step" data-step="4">
-        <p class="step-kicker">STEP 04 • READ BEFORE BOARDING</p>
-        <h2>กำหนดการและสถานที่</h2>
-        <p class="lead">เลื่อนอ่านรายละเอียดให้ครบก่อนยืนยัน</p>
-        <div class="agenda" id="agenda"></div>
-        <div class="location-grid" id="locations"></div>
-        <label class="check-line"><input id="agendaRead" type="checkbox"><span>ฉันอ่านกำหนดการและรายละเอียดสถานที่เรียบร้อยแล้ว</span></label>
-        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← ย้อนกลับ</button><button class="btn btn-primary" type="button" data-next>ตรวจสอบข้อมูล →</button></div>
-      </div>
-
-      <div class="step" data-step="5">
-        <p class="step-kicker">STEP 05 • FINAL CHECK</p>
-        <h2>ตรวจสอบก่อน Check-in</h2>
-        <p class="lead">เมื่อยืนยัน ระบบจะบันทึกข้อมูลและสร้าง Boarding Pass เป็น JPEG</p>
-        <div class="summary-box" id="summary"></div>
-        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← แก้ไข</button><button class="btn btn-gold" id="submitBtn" type="button">ยืนยัน Check-in</button></div>
-      </div>
+      <section class="step" data-step="4">
+        <p class="section-label">STEP 4</p>
+        <h2>ตรวจสอบการเดินทาง</h2>
+        <div id="summary" class="summary-grid"></div>
+        <details class="details-card" open><summary>กำหนดการ</summary><div id="agenda" class="agenda"></div></details>
+        <div id="locations" class="location-list"></div>
+        <label class="consent-line"><input id="agendaRead" type="checkbox"><span>ฉันอ่านกำหนดการและรายละเอียดสถานที่เรียบร้อยแล้ว</span></label>
+        <div class="submit-note">เมื่อกดยืนยัน ระบบจะสร้าง JPEG ขนาด 21 × 7.425 ซม. และบันทึกข้อมูลลง Sheet + Drive ในครั้งเดียว</div>
+      </section>
     </section>
 
-    <section class="boarding-wrap" id="boardingWrap" aria-live="polite">
-      <div class="export-heading">
-        <div><p class="step-kicker">YOUR DIGITAL BOARDING PASS</p><h2>พร้อมออกเดินทางแล้ว</h2></div>
-        <span class="size-badge">21 × 7.425 CM • 300 DPI</span>
-      </div>
-      <div class="boarding-preview" id="boardingPreview"><img class="boarding-pass-image" id="boardingPassImage" alt="CES Journey Boarding Pass"></div>
-      <div class="export-panel">
-        <div><strong id="exportStatus">กำลังสร้างและบันทึก JPEG…</strong><p id="exportDetail">ไฟล์จะถูกเก็บใน Google Drive และบันทึกลิงก์กลับเข้า Google Sheet</p></div>
-        <a class="drive-link" id="driveFileLink" href="#" target="_blank" rel="noopener" hidden>เปิดใน Drive ↗</a>
-      </div>
-      <div class="actions after-pass">
-        <button class="btn btn-secondary" type="button" id="editAgain">แก้ไขข้อมูล</button>
-        <button class="btn btn-secondary" type="button" id="retryExport" hidden>บันทึก JPEG อีกครั้ง</button>
-        <button class="btn btn-primary" type="button" id="downloadJpeg">ดาวน์โหลด JPEG</button>
-        <button class="btn btn-gold" type="button" id="printPass">พิมพ์ A4 แนวนอน</button>
+    <nav class="bottom-actions" id="bottomActions" aria-label="ปุ่มดำเนินการ">
+      <button id="backBtn" class="btn btn-light" type="button" hidden>ย้อนกลับ</button>
+      <button id="nextBtn" class="btn btn-primary" type="button">ถัดไป</button>
+      <button id="submitBtn" class="btn btn-gold" type="button" hidden>ยืนยัน Check-in</button>
+    </nav>
+
+    <section class="result-card" id="resultCard" hidden>
+      <div class="success-mark">✓</div>
+      <p class="section-label">CHECK-IN COMPLETE</p>
+      <h2>Boarding Pass พร้อมแล้ว</h2>
+      <p id="resultMessage" class="lead"></p>
+      <div class="pass-scroll"><img id="boardingPassImage" alt="Boarding Pass"></div>
+      <div class="result-actions">
+        <a id="driveFileLink" class="btn btn-primary" href="#" target="_blank" rel="noopener">เปิดไฟล์ใน Drive</a>
+        <button id="downloadJpeg" class="btn btn-light" type="button">ดาวน์โหลด JPEG</button>
+        <button id="printPass" class="btn btn-gold" type="button">พิมพ์ A4</button>
+        <button id="editAgain" class="btn btn-plain" type="button">แก้ไขข้อมูล</button>
       </div>
     </section>
   </main>
 
-  <div class="toast" id="toast"></div>
+  <div id="savingOverlay" class="saving-overlay" hidden>
+    <div class="saving-box"><div class="spinner"></div><strong>กำลังบันทึก Check-in</strong><span id="savingText">กำลังสร้าง Boarding Pass…</span></div>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
   <script src="assets/js/config.js"></script>
-  <script src="assets/js/backend-client.js"></script>
+  <script src="assets/js/apps-script-client.js"></script>
   <script src="assets/js/app.js"></script>
 </body>
 </html>
