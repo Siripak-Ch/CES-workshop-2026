@@ -5,7 +5,7 @@
     width: 2480,
     height: 877,
     dpi: 300,
-    jpegQuality: 0.80,
+    jpegQuality: 0.78,
     splitX: 1850,
     colors: Object.freeze({
       navy: '#092A50',
@@ -315,48 +315,48 @@
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(530, 684);
-    ctx.lineTo(798, 684);
-    ctx.moveTo(1128, 684);
+    ctx.lineTo(782, 684);
+    ctx.moveTo(1144, 684);
     ctx.lineTo(1710, 684);
     ctx.stroke();
 
-    drawDiamond(ctx, 822, 684, 8, c.gold);
-    drawDiamond(ctx, 1105, 684, 8, c.gold);
+    drawDiamond(ctx, 808, 684, 8, c.gold);
+    drawDiamond(ctx, 1121, 684, 8, c.gold);
     ctx.fillStyle = c.ink;
-    ctx.font = font(24, 900, 'Arial, Helvetica, sans-serif');
-    ctx.fillText('JOURNEY SERVICE', 858, 692);
+    ctx.font = font(25, 900, 'Arial, Helvetica, sans-serif');
+    ctx.fillText('JOURNEY SERVICE', 844, 692);
 
     ctx.fillStyle = c.paper;
     ctx.strokeStyle = c.line;
-    roundedRect(ctx, 530, 706, 1180, 114, 18);
+    roundedRect(ctx, 530, 704, 1180, 126, 18);
     ctx.fill();
     ctx.stroke();
 
     drawServiceBox(ctx, {
-      x: 548, y: 723, w: 302, h: 80,
+      x: 546, y: 720, w: 310, h: 96,
       label: 'DRINK', value: data.drink,
-      icon: () => drawCupIcon(ctx, 580, 761, 0.68, c.navyMid),
-      valueWidth: 210,
-      fontSize: 18,
-      minSize: 13
+      icon: () => drawCupIcon(ctx, 580, 765, 0.70, c.navyMid),
+      valueWidth: 220,
+      fontSize: 20,
+      minSize: 14
     }, c);
 
     drawServiceBox(ctx, {
-      x: 870, y: 723, w: 248, h: 80,
+      x: 874, y: 720, w: 252, h: 96,
       label: 'SWEETNESS', value: data.sweetness,
-      icon: () => drawSugarIcon(ctx, 902, 761, 0.66, c.navyMid),
-      valueWidth: 148,
-      fontSize: 18,
-      minSize: 13
+      icon: () => drawSugarIcon(ctx, 908, 765, 0.68, c.navyMid),
+      valueWidth: 150,
+      fontSize: 20,
+      minSize: 14
     }, c);
 
     drawServiceBox(ctx, {
-      x: 1138, y: 723, w: 554, h: 80,
+      x: 1144, y: 720, w: 548, h: 96,
       label: 'FOOD', value: data.food,
-      icon: () => drawFoodIcon(ctx, 1170, 761, 0.66, c.navyMid),
-      valueWidth: 456,
-      fontSize: 18,
-      minSize: 12,
+      icon: () => drawFoodIcon(ctx, 1178, 765, 0.68, c.navyMid),
+      valueWidth: 448,
+      fontSize: 20,
+      minSize: 13,
       multiLine: true
     }, c);
   }
@@ -388,14 +388,14 @@
         options.minSize,
         800,
         'Tahoma, Arial, sans-serif',
-        1.18
+        1.22
       );
     } else {
       fitText(
         ctx,
         options.value,
         options.x + 62,
-        options.y + 57,
+        options.y + 58,
         options.valueWidth,
         options.fontSize,
         options.minSize,

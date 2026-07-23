@@ -16,7 +16,7 @@
         backendUrl,
         channel: String(config.channel || 'CES_BOARDING_PASS_FORM_V4'),
         requestTimeoutMs: Math.max(30000, Number(config.requestTimeoutMs || 120000)),
-        pollIntervalMs: Math.max(600, Number(config.pollIntervalMs || 900))
+        pollIntervalMs: Math.max(450, Number(config.pollIntervalMs || 700))
       };
     }
 
@@ -125,7 +125,7 @@
         document.body.appendChild(iframe);
         document.body.appendChild(form);
         form.submit();
-        pollTimer = global.setTimeout(poll, 450);
+        pollTimer = global.setTimeout(poll, 350);
       });
     }
 

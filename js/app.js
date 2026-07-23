@@ -125,7 +125,7 @@
       return;
     }
     try {
-      state.photoData = await compressImage(file, 460, 0.62);
+      state.photoData = await compressImage(file, 420, 0.58);
       $('#photoPreview').src = state.photoData;
     } catch (error) {
       state.photoData = '';
@@ -257,7 +257,7 @@
 
     const button = $('#submitBtn');
     button.disabled = true;
-    showSaving('กำลังสร้าง Boarding Pass และเตรียมบันทึกข้อมูล…');
+    showSaving('กำลังสร้าง Boarding Pass และเตรียมบันทึก Check-in…');
 
     const employeeId = $('#employeeId').value.trim().toUpperCase();
     const nickname = $('#nickname').value.trim();
@@ -391,14 +391,59 @@
     document.body.style.overflow = '';
   }
 
-  function downloadBoardingPass() {
+  async function downloadBoardingPass() {
     if (!state.boardingPassData || !state.latestResult) return fail('ยังไม่มี Boarding Pass');
-    const a = document.createElement('a');
-    a.href = state.boardingPassData;
-    a.download = sanitizeDownloadName(`BoardingPass_${state.latestResult.ticketId}_${state.latestResult.nickname}.jpg`);
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
+    const fileName = sanitizeDownloadName(`BoardingPass_${state.latestResult.ticketId}_${state.latestResult.nickname}.jpg`);
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    try {
+      const blob = dataUrlToBlob(state.boardingPassData);
+      const file = new File([blob], fileName, { type: 'image/jpeg' });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] }) && navigator.share) {
+        await navigator.share({
+          files: [file],
+          title: fileName,
+          text: 'Boarding Pass JPEG'
+        });
+        showToast('เปิดเมนูแชร์แล้ว — เลือก Save Image หรือ Save to Files ได้เลย');
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = fileName;
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+
+      if (isIOS || /Android/i.test(navigator.userAgent)) {
+        const popup = window.open(objectUrl, '_blank');
+        if (popup) {
+          showToast('หากไม่ดาวน์โหลดอัตโนมัติ ให้กดค้างที่รูปแล้วเลือก Save หรือ Download');
+        } else {
+          showToast('เบราว์เซอร์บนมือถือบล็อกการดาวน์โหลดอัตโนมัติ — กรุณาเปิดป๊อปอัปหรือใช้ปุ่มแชร์', true);
+        }
+      }
+
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 30000);
+    } catch (error) {
+      console.error(error);
+      fail('ดาวน์โหลด JPEG บนมือถือไม่สำเร็จ ลองใช้ปุ่มแชร์หรือเปิดรูปในแท็บใหม่');
+    }
+  }
+
+  function dataUrlToBlob(dataUrl) {
+    const parts = String(dataUrl).split(',');
+    const meta = parts[0] || '';
+    const mimeMatch = meta.match(/data:([^;]+);base64/);
+    const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+    const binary = atob(parts[1] || '');
+    const len = binary.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i += 1) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
   }
 
   function createTicketId(role, employeeId) {

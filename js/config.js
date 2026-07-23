@@ -3,7 +3,7 @@ window.CES_APP_CONFIG = Object.freeze({
   backendUrl: 'https://script.google.com/macros/s/AKfycby9OLRUG2SoRYdTW35fzhxH4_lqcuM60KGdClqrqkAQ66cFu3I7swUD1PchhkB8GRjbyg/exec',
   channel: 'CES_BOARDING_PASS_FORM_V4',
   requestTimeoutMs: 120000,
-  pollIntervalMs: 900,
+  pollIntervalMs: 700,
   generationTimeoutMs: 12000,
   driveFolderUrl: 'https://drive.google.com/drive/folders/16avdTExhV5kFuzbfGpk9plzRqq9OAJ_g',
   logoUrl: 'assets/images/workshop-passport-logo.png',
