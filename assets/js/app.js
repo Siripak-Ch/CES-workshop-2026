@@ -424,30 +424,32 @@
     ctx.restore();
 
     // Keep employee ID numerals level and aligned with the template labels.
-    drawEmployeeId(ctx, result.employeeId, 132, 749, 21, muted);
+    drawEmployeeId(ctx, result.employeeId, 130, 742, 21, muted);
 
     ctx.fillStyle = navy;
     fitText(ctx, String(result.nickname || '').toUpperCase(), 590, 378, 1150, 72, 38, '900', 'Georgia, serif');
-    drawEmployeeId(ctx, result.employeeId, 785, 435, 24, muted);
+    drawEmployeeId(ctx, result.employeeId, 785, 429, 24, muted);
 
     drawDynamicValue(ctx, result.roleLabel, 616, 536, 235, 28, 17, navy);
     drawDynamicValue(ctx, result.eventDate, 926, 536, 235, 27, 16, navy);
     drawDynamicValue(ctx, result.departure, 1236, 536, 235, 28, 17, navy);
-    drawDynamicValue(ctx, result.route, 616, 681, 540, 23, 11, navy);
+    drawRouteBlock(ctx, result.route, 616, 642, 540, navy, gold);
     drawDynamicValue(ctx, result.arrival, 1236, 681, 235, 28, 17, navy);
 
     const drink = result.role === 'AM_MNG' ? result.selections.morningDrink : result.selections.afternoonDrink;
     const sweetness = result.role === 'AM_MNG' ? result.selections.morningSweetness : result.selections.afternoonSweetness;
     const food = result.role === 'AM_MNG' ? result.selections.breakfastFood : 'AFTERNOON BREAK';
-    ctx.fillStyle = muted;
-    fitText(ctx, `DRINK  ${drink} • SWEETNESS ${sweetness}`, 590, 804, 1160, 20, 13, '700', 'Tahoma, Arial, sans-serif');
-    fitText(ctx, `FOOD  ${food}`, 590, 833, 1160, 20, 13, '700', 'Tahoma, Arial, sans-serif');
+    drawJourneyServicePanel(ctx, {
+      drink,
+      sweetness,
+      food
+    }, 582, 742, 900, 102, navy, gold, muted);
 
     ctx.fillStyle = gold;
     fitText(ctx, result.ticketId, 1900, 370, 455, 20, 13, '800', 'Tahoma, Arial, sans-serif');
     ctx.fillStyle = '#FFFFFF';
     fitText(ctx, result.nickname, 1900, 470, 455, 27, 17, '900', 'Tahoma, Arial, sans-serif');
-    fitText(ctx, result.route, 1900, 585, 455, 21, 12, '800', 'Tahoma, Arial, sans-serif');
+    drawStubRouteBlock(ctx, result.route, 1900, 563, 455, gold);
     drawBarcode(ctx, 1900, 650, 455, 100, result.ticketId);
 
     return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.86), Number(exp.dpi || 300));
@@ -463,7 +465,7 @@
   function drawEmployeeId(ctx, value, x, y, fontSize, color) {
     ctx.save();
     ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
+    ctx.textBaseline = 'middle';
     ctx.direction = 'ltr';
     if ('fontKerning' in ctx) ctx.fontKerning = 'none';
     ctx.fillStyle = color;
@@ -475,6 +477,83 @@
   function drawDynamicValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
     ctx.fillStyle = color;
     fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Tahoma, Arial, sans-serif');
+  }
+
+
+  function drawRouteBlock(ctx, routeText, x, y, maxWidth, color, accent) {
+    const parts = normalizeRouteParts(routeText);
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    fitText(ctx, parts[0], x, y + 20, maxWidth, 12, 10, '800', 'Arial, Helvetica, sans-serif');
+    ctx.fillStyle = accent;
+    ctx.font = '900 14px Arial, Helvetica, sans-serif';
+    ctx.fillText('→', x, y + 40);
+    ctx.fillStyle = color;
+    fitText(ctx, parts[1], x + 22, y + 40, maxWidth - 22, 12, 10, '800', 'Arial, Helvetica, sans-serif');
+    ctx.restore();
+  }
+
+  function drawStubRouteBlock(ctx, routeText, x, y, maxWidth, accent) {
+    const parts = normalizeRouteParts(routeText);
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    fitText(ctx, parts[0], x, y, maxWidth, 13, 11, '800', 'Arial, Helvetica, sans-serif');
+    ctx.fillStyle = accent;
+    ctx.font = '900 13px Arial, Helvetica, sans-serif';
+    ctx.fillText('→', x, y + 18);
+    ctx.fillStyle = '#FFFFFF';
+    fitText(ctx, parts[1], x + 18, y + 18, maxWidth - 18, 13, 11, '800', 'Arial, Helvetica, sans-serif');
+    ctx.restore();
+  }
+
+  function normalizeRouteParts(routeText) {
+    const text = String(routeText || '').replace(/\s+/g, ' ').trim();
+    const parts = text.split(/\s*(?:→|->|—>|–>)\s*/).map((item) => item.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return [parts[0], parts.slice(1).join(' → ')];
+    }
+    return [text, ''];
+  }
+
+  function drawJourneyServicePanel(ctx, service, x, y, width, height, navy, gold, muted) {
+    ctx.save();
+    ctx.globalAlpha = 0.96;
+    ctx.fillStyle = '#F8F4EA';
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.strokeStyle = '#E6D7B2';
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.stroke();
+
+    ctx.fillStyle = navy;
+    ctx.font = '900 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('JOURNEY SERVICE', x + 22, y + 24);
+
+    drawServiceChip(ctx, 'DRINK', service.drink || '-', x + 22, y + 38, 360, 24, navy, gold);
+    drawServiceChip(ctx, 'SWEETNESS', service.sweetness || '-', x + 394, y + 38, 168, 24, navy, gold);
+    drawServiceChip(ctx, 'FOOD', service.food || '-', x + 22, y + 68, width - 44, 24, navy, gold);
+    ctx.restore();
+  }
+
+  function drawServiceChip(ctx, label, value, x, y, maxWidth, height, navy, gold) {
+    ctx.fillStyle = '#FFFFFF';
+    roundRect(ctx, x, y, maxWidth, height, 12);
+    ctx.fill();
+    ctx.strokeStyle = '#E8DDBE';
+    ctx.lineWidth = 1;
+    roundRect(ctx, x, y, maxWidth, height, 12);
+    ctx.stroke();
+
+    ctx.fillStyle = gold;
+    ctx.font = '800 12px Arial, Helvetica, sans-serif';
+    ctx.fillText(label, x + 12, y + 16);
+
+    ctx.fillStyle = navy;
+    fitText(ctx, String(value || '-'), x + 86, y + 16, maxWidth - 98, 14, 11, '800', 'Arial, Helvetica, sans-serif');
   }
 
   function drawTemplateFallback(ctx, width, height) {
