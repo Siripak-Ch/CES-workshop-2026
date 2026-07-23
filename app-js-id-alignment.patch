@@ -1,0 +1,40 @@
+--- /tmp/v9orig/assets/js/app.js	2026-07-23 10:05:49.071501529 +0000
++++ /mnt/data/CES_Boarding_Pass_v9_1_ID_Alignment_Patch/assets/js/app.js	2026-07-23 10:05:48.951501526 +0000
+@@ -423,15 +423,12 @@
+     drawCoverImage(ctx, photo, 84, 280, 391, 370);
+     ctx.restore();
+ 
+-    ctx.fillStyle = muted;
+-    ctx.font = '700 21px Tahoma, Arial, sans-serif';
+-    ctx.fillText(result.employeeId, 132, 752);
++    // Keep employee ID numerals level and aligned with the template labels.
++    drawEmployeeId(ctx, result.employeeId, 132, 749, 21, muted);
+ 
+     ctx.fillStyle = navy;
+     fitText(ctx, String(result.nickname || '').toUpperCase(), 590, 378, 1150, 72, 38, '900', 'Georgia, serif');
+-    ctx.fillStyle = muted;
+-    ctx.font = '700 24px Tahoma, Arial, sans-serif';
+-    ctx.fillText(result.employeeId, 785, 438);
++    drawEmployeeId(ctx, result.employeeId, 785, 435, 24, muted);
+ 
+     drawDynamicValue(ctx, result.roleLabel, 616, 536, 235, 28, 17, navy);
+     drawDynamicValue(ctx, result.eventDate, 926, 536, 235, 27, 16, navy);
+@@ -463,6 +460,18 @@
+     ]);
+   }
+ 
++  function drawEmployeeId(ctx, value, x, y, fontSize, color) {
++    ctx.save();
++    ctx.textAlign = 'left';
++    ctx.textBaseline = 'alphabetic';
++    ctx.direction = 'ltr';
++    if ('fontKerning' in ctx) ctx.fontKerning = 'none';
++    ctx.fillStyle = color;
++    ctx.font = `700 ${fontSize}px Arial, Helvetica, sans-serif`;
++    ctx.fillText(String(value || ''), Math.round(x), Math.round(y));
++    ctx.restore();
++  }
++
+   function drawDynamicValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
+     ctx.fillStyle = color;
+     fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Tahoma, Arial, sans-serif');

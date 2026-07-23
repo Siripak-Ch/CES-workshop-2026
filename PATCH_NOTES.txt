@@ -1,0 +1,17 @@
+CES Boarding Pass v9.1 — Employee ID Alignment Patch
+
+แก้เฉพาะไฟล์:
+assets/js/app.js
+
+วิธีใช้:
+1. เปิด Repository GitHub
+2. นำไฟล์ assets/js/app.js จาก Patch นี้ไปทับไฟล์เดิม
+3. Commit / Push
+4. รอ GitHub Pages Deploy สำเร็จ แล้ว Refresh หน้าเว็บ
+
+สิ่งที่แก้:
+- ปรับตำแหน่งเลข Employee ID ด้านซ้ายขึ้น 3 px
+- ปรับตำแหน่งเลข Employee ID ใต้ชื่อขึ้น 3 px
+- บังคับตัวเลขใช้ Arial แบบ LTR และปิด kerning เพื่อไม่ให้เลขเอียงหรือระดับไม่เท่ากันบนมือถือ
+
+ไม่ต้องแก้ Backend และไม่ต้อง Deploy Apps Script ใหม่
