@@ -393,6 +393,7 @@
     return `CES26-${prefix}-${employeeId}-${code}`;
   }
 
+
   async function createBoardingPassJpeg(result, photoData, appConfig) {
     const exp = appConfig.export;
     const width = Number(exp.widthPx || 2480);
@@ -402,57 +403,56 @@
     canvas.height = height;
     const ctx = canvas.getContext('2d', { alpha: false });
 
-    const images = await Promise.all([
+    const [photo, logo] = await Promise.all([
       loadImageWithTimeout(photoData, Number(appConfig.generationTimeoutMs || 12000)),
-      loadImageWithTimeout(appConfig.boardingTemplateUrl, Number(appConfig.generationTimeoutMs || 12000)).catch(() => null)
+      loadImageWithTimeout(appConfig.logoUrl, Number(appConfig.generationTimeoutMs || 12000)).catch(() => null)
     ]);
-    const photo = images[0];
-    const template = images[1];
 
-    if (template) ctx.drawImage(template, 0, 0, width, height);
-    else drawTemplateFallback(ctx, width, height);
+    const palette = {
+      navy: '#123C73',
+      navyDeep: '#0D2E59',
+      gold: '#C9A34E',
+      goldSoft: '#E8D8B0',
+      cream: '#FBF8F1',
+      paper: '#FFFCF7',
+      muted: '#6D7786',
+      line: '#D9CBA7'
+    };
 
-    const navy = '#103560';
-    const gold = '#CFA84C';
-    const muted = '#647589';
+    drawBoardingPassBackground(ctx, width, height, palette, logo);
 
-    // Participant photo — crop only, never stretch.
-    ctx.save();
-    roundRect(ctx, 84, 280, 391, 370, 26);
-    ctx.clip();
-    drawCoverImage(ctx, photo, 84, 280, 391, 370);
-    ctx.restore();
+    drawPassengerPhotoCard(ctx, photo, palette);
 
-    // Keep employee ID numerals level and aligned with the template labels.
-    drawEmployeeId(ctx, result.employeeId, 130, 742, 21, muted);
+    ctx.fillStyle = palette.navyDeep;
+    fitText(ctx, String(result.nickname || '').toUpperCase(), 570, 333, 930, 58, 34, '900', 'Georgia, Times New Roman, serif');
 
-    ctx.fillStyle = navy;
-    fitText(ctx, String(result.nickname || '').toUpperCase(), 590, 378, 1150, 72, 38, '900', 'Georgia, serif');
-    drawEmployeeId(ctx, result.employeeId, 785, 429, 24, muted);
+    drawEmployeeId(ctx, result.employeeId, 710, 392, 23, palette.navyDeep);
+    drawEmployeeId(ctx, result.employeeId, 122, 762, 21, palette.navyDeep);
 
-    drawDynamicValue(ctx, result.roleLabel, 616, 536, 235, 28, 17, navy);
-    drawDynamicValue(ctx, result.eventDate, 926, 536, 235, 27, 16, navy);
-    drawDynamicValue(ctx, result.departure, 1236, 536, 235, 28, 17, navy);
-    drawRouteBlock(ctx, result.route, 616, 642, 540, navy, gold);
-    drawDynamicValue(ctx, result.arrival, 1236, 681, 235, 28, 17, navy);
+    drawInfoValue(ctx, result.roleLabel, 676, 470, 230, 30, 17, palette.navyDeep);
+    drawInfoValue(ctx, result.eventDate, 1006, 470, 230, 28, 16, palette.navyDeep);
+    drawInfoValue(ctx, result.departure, 1338, 470, 210, 32, 18, palette.navyDeep);
+
+    const routeParts = splitRoute(result.route);
+    drawMainRoute(ctx, routeParts, palette);
+    drawInfoValue(ctx, result.arrival, 1538, 612, 160, 33, 18, palette.navyDeep);
 
     const drink = result.role === 'AM_MNG' ? result.selections.morningDrink : result.selections.afternoonDrink;
     const sweetness = result.role === 'AM_MNG' ? result.selections.morningSweetness : result.selections.afternoonSweetness;
     const food = result.role === 'AM_MNG' ? result.selections.breakfastFood : 'AFTERNOON BREAK';
     drawJourneyServicePanel(ctx, {
-      drink,
-      sweetness,
-      food
-    }, 582, 742, 900, 102, navy, gold, muted);
+      drink: drink || '-',
+      sweetness: sweetness || '-',
+      food: food || '-'
+    }, palette);
 
-    ctx.fillStyle = gold;
-    fitText(ctx, result.ticketId, 1900, 370, 455, 20, 13, '800', 'Tahoma, Arial, sans-serif');
-    ctx.fillStyle = '#FFFFFF';
-    fitText(ctx, result.nickname, 1900, 470, 455, 27, 17, '900', 'Tahoma, Arial, sans-serif');
-    drawStubRouteBlock(ctx, result.route, 1900, 563, 455, gold);
-    drawBarcode(ctx, 1900, 650, 455, 100, result.ticketId);
+    drawStubDynamic(ctx, {
+      ticketId: result.ticketId,
+      nickname: result.nickname,
+      routeParts
+    }, palette);
 
-    return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.86), Number(exp.dpi || 300));
+    return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.9), Number(exp.dpi || 300));
   }
 
   function loadImageWithTimeout(src, timeoutMs) {
@@ -460,6 +460,320 @@
       loadImage(src),
       new Promise((_, reject) => setTimeout(() => reject(new Error('โหลดรูปสำหรับ Boarding Pass นานเกินกำหนด')), timeoutMs))
     ]);
+  }
+
+  function drawBoardingPassBackground(ctx, width, height, palette, logo) {
+    ctx.fillStyle = '#EFECE3';
+    ctx.fillRect(0, 0, width, height);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(10, 27, 50, 0.15)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 8;
+    ctx.fillStyle = palette.paper;
+    roundRect(ctx, 14, 14, width - 28, height - 28, 40);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 14, 14, width - 28, height - 28, 40);
+    ctx.stroke();
+
+    const headerH = 190;
+    ctx.fillStyle = palette.navyDeep;
+    roundRect(ctx, 20, 20, width - 40, headerH, 34);
+    ctx.fill();
+    ctx.fillRect(20, 112, width - 40, 98);
+
+    drawHeaderDecor(ctx, width, palette);
+
+    if (logo) {
+      ctx.save();
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(98, 98, 58, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = palette.goldSoft;
+      ctx.stroke();
+      ctx.clip();
+      ctx.drawImage(logo, 41, 41, 114, 114);
+      ctx.restore();
+    } else {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(98, 98, 58, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '800 24px Arial, Helvetica, sans-serif';
+    ctx.fillText('CES • LEADERSHIP TRANSFORMATION JOURNEY PASSPORT', 175, 66);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 72px Georgia, Times New Roman, serif';
+    ctx.fillText('Journey Check-in', 175, 128);
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '700 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('REFLECT • CONNECT • INSPIRE', 175, 175);
+
+    drawBoardingBadge(ctx, 1960, 48, 386, 66, palette);
+
+    // Static areas
+    ctx.fillStyle = '#F6F1E7';
+    roundRect(ctx, 50, 235, 408, 566, 26);
+    ctx.fill();
+
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 24px Arial, Helvetica, sans-serif';
+    ctx.fillText('PASSENGER', 74, 730);
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 17px Arial, Helvetica, sans-serif';
+    ctx.fillText('ID', 74, 778);
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS TEMPLATE', 570, 270);
+    ctx.fillStyle = palette.muted;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('EMPLOYEE ID', 570, 392);
+
+    drawInfoCardShell(ctx, 560, 405, 290, 100, 'GROUP', palette);
+    drawInfoCardShell(ctx, 890, 405, 290, 100, 'DATE', palette);
+    drawInfoCardShell(ctx, 1220, 405, 290, 100, 'BOARDING', palette);
+
+    drawRouteShell(ctx, palette);
+    drawArrivalShell(ctx, palette);
+    drawJourneyServiceShell(ctx, palette);
+    drawStubShell(ctx, palette);
+    drawPerforation(ctx, width, height, palette);
+    drawFooterAccent(ctx, palette);
+  }
+
+  function drawHeaderDecor(ctx, width, palette) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(226, 201, 145, 0.35)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([10, 9]);
+    ctx.beginPath();
+    ctx.moveTo(width - 720, 76);
+    ctx.bezierCurveTo(width - 600, 10, width - 520, 170, width - 350, 98);
+    ctx.bezierCurveTo(width - 260, 58, width - 220, 120, width - 160, 108);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = 'rgba(226, 201, 145, 0.35)';
+    ctx.font = '900 56px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', width - 775, 92);
+    ctx.restore();
+  }
+
+  function drawBoardingBadge(ctx, x, y, width, height, palette) {
+    ctx.save();
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.beginPath();
+    ctx.moveTo(x + width - 96, y + 1);
+    ctx.lineTo(x + width - 1, y + 1);
+    ctx.lineTo(x + width - 1, y + height - 1);
+    ctx.lineTo(x + width - 128, y + height - 1);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = palette.goldSoft;
+    ctx.font = '900 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS', x + 28, y + 43);
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 28px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', x + width - 62, y + 43);
+    ctx.restore();
+  }
+
+  function drawPassengerPhotoCard(ctx, photo, palette) {
+    ctx.save();
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.clip();
+    drawCoverImage(ctx, photo, 78, 260, 352, 420);
+    ctx.restore();
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 3;
+    roundRect(ctx, 78, 260, 352, 420, 24);
+    ctx.stroke();
+  }
+
+  function drawInfoCardShell(ctx, x, y, width, height, label, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, x, y, width, height, 18);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText(label, x + 88, y + 32);
+    drawIconBubble(ctx, x + 44, y + 48, 22, palette);
+    ctx.fillStyle = palette.paper;
+    ctx.font = '900 16px Arial, Helvetica, sans-serif';
+    ctx.fillText(label.charAt(0), x + 39, y + 54);
+  }
+
+  function drawIconBubble(ctx, cx, cy, r, palette) {
+    ctx.fillStyle = palette.gold;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawRouteShell(ctx, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 560, 535, 950, 110, 20);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('ROUTE', 618, 566);
+    ctx.font = '900 32px Arial, Helvetica, sans-serif';
+    ctx.fillText('✈', 1060, 598);
+  }
+
+  function drawArrivalShell(ctx, palette) {
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 1530, 535, 238, 110, 20);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('ARRIVAL', 1615, 566);
+    ctx.font = '900 30px Arial, Helvetica, sans-serif';
+    ctx.fillText('⚑', 1564, 599);
+  }
+
+  function drawJourneyServiceShell(ctx, palette) {
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(560, 700);
+    ctx.lineTo(842, 700);
+    ctx.moveTo(1140, 700);
+    ctx.lineTo(1768, 700);
+    ctx.stroke();
+    ctx.fillStyle = palette.gold;
+    ctx.font = '900 22px Arial, Helvetica, sans-serif';
+    ctx.fillText('✦', 865, 708);
+    ctx.fillText('✦', 1115, 708);
+    ctx.fillStyle = palette.navyDeep;
+    ctx.font = '900 25px Arial, Helvetica, sans-serif';
+    ctx.fillText('JOURNEY SERVICE', 920, 708);
+
+    ctx.fillStyle = '#FFFCF7';
+    ctx.strokeStyle = palette.line;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 560, 726, 1208, 102, 20);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#DDCFAB';
+    ctx.beginPath();
+    ctx.moveTo(916, 746);
+    ctx.lineTo(916, 810);
+    ctx.moveTo(1252, 746);
+    ctx.lineTo(1252, 810);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 16px Arial, Helvetica, sans-serif';
+    ctx.fillText('DRINK', 680, 767);
+    ctx.fillText('SWEETNESS', 992, 767);
+    ctx.fillText('FOOD', 1340, 767);
+  }
+
+  function drawStubShell(ctx, palette) {
+    ctx.fillStyle = '#FCFAF4';
+    ctx.fillRect(1854, 210, 596, 632);
+
+    ctx.fillStyle = palette.navyDeep;
+    roundRect(ctx, 1920, 258, 304, 60, 14);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 22px Arial, Helvetica, sans-serif';
+    ctx.fillText('BOARDING PASS', 1970, 296);
+
+    ctx.strokeStyle = palette.gold;
+    ctx.lineWidth = 2;
+    roundRect(ctx, 1920, 348, 304, 62, 14);
+    ctx.stroke();
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 15px Arial, Helvetica, sans-serif';
+    ctx.fillText('PASSENGER', 1918, 448);
+    ctx.fillText('ROUTE', 1918, 572);
+
+    ctx.strokeStyle = '#C8D0DA';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([8, 8]);
+    ctx.beginPath();
+    ctx.moveTo(1918, 516); ctx.lineTo(2212, 516);
+    ctx.moveTo(1918, 682); ctx.lineTo(2212, 682);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = palette.gold;
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', 1918, 820);
+  }
+
+  function drawPerforation(ctx, width, height, palette) {
+    const x = 1854;
+    ctx.save();
+    ctx.strokeStyle = '#A1A8B1';
+    ctx.lineWidth = 4;
+    ctx.setLineDash([14, 18]);
+    ctx.beginPath();
+    ctx.moveTo(x, 120);
+    ctx.lineTo(x, height - 30);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = palette.paper;
+    ctx.beginPath(); ctx.arc(x, 20, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, height - 20, 18, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function drawFooterAccent(ctx, palette) {
+    ctx.fillStyle = palette.navyDeep;
+    ctx.beginPath();
+    ctx.moveTo(20, 828);
+    ctx.lineTo(1100, 828);
+    ctx.lineTo(1160, 868);
+    ctx.lineTo(20, 868);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '800 18px Arial, Helvetica, sans-serif';
+    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', 92, 856);
+
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(1175, 828); ctx.lineTo(1225, 868);
+    ctx.moveTo(1200, 828); ctx.lineTo(1250, 868);
+    ctx.stroke();
+    ctx.strokeStyle = palette.gold;
+    ctx.beginPath();
+    ctx.moveTo(1235, 828); ctx.lineTo(1285, 868);
+    ctx.stroke();
   }
 
   function drawEmployeeId(ctx, value, x, y, fontSize, color) {
@@ -474,95 +788,91 @@
     ctx.restore();
   }
 
-  function drawDynamicValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
+  function drawInfoValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
     ctx.fillStyle = color;
-    fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Tahoma, Arial, sans-serif');
+    fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Arial, Helvetica, sans-serif');
   }
 
-
-  function drawRouteBlock(ctx, routeText, x, y, maxWidth, color, accent) {
-    const parts = normalizeRouteParts(routeText);
-    ctx.save();
-    ctx.fillStyle = color;
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    fitText(ctx, parts[0], x, y + 20, maxWidth, 12, 10, '800', 'Arial, Helvetica, sans-serif');
-    ctx.fillStyle = accent;
-    ctx.font = '900 14px Arial, Helvetica, sans-serif';
-    ctx.fillText('→', x, y + 40);
-    ctx.fillStyle = color;
-    fitText(ctx, parts[1], x + 22, y + 40, maxWidth - 22, 12, 10, '800', 'Arial, Helvetica, sans-serif');
-    ctx.restore();
-  }
-
-  function drawStubRouteBlock(ctx, routeText, x, y, maxWidth, accent) {
-    const parts = normalizeRouteParts(routeText);
-    ctx.save();
-    ctx.fillStyle = '#FFFFFF';
-    fitText(ctx, parts[0], x, y, maxWidth, 13, 11, '800', 'Arial, Helvetica, sans-serif');
-    ctx.fillStyle = accent;
-    ctx.font = '900 13px Arial, Helvetica, sans-serif';
-    ctx.fillText('→', x, y + 18);
-    ctx.fillStyle = '#FFFFFF';
-    fitText(ctx, parts[1], x + 18, y + 18, maxWidth - 18, 13, 11, '800', 'Arial, Helvetica, sans-serif');
-    ctx.restore();
-  }
-
-  function normalizeRouteParts(routeText) {
+  function splitRoute(routeText) {
     const text = String(routeText || '').replace(/\s+/g, ' ').trim();
     const parts = text.split(/\s*(?:→|->|—>|–>)\s*/).map((item) => item.trim()).filter(Boolean);
-    if (parts.length >= 2) {
-      return [parts[0], parts.slice(1).join(' → ')];
-    }
+    if (parts.length >= 2) return [parts[0], parts.slice(1).join(' → ')];
     return [text, ''];
   }
 
-  function drawJourneyServicePanel(ctx, service, x, y, width, height, navy, gold, muted) {
-    ctx.save();
-    ctx.globalAlpha = 0.96;
-    ctx.fillStyle = '#F8F4EA';
-    roundRect(ctx, x, y, width, height, 18);
-    ctx.fill();
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = '#E6D7B2';
-    ctx.lineWidth = 2;
-    roundRect(ctx, x, y, width, height, 18);
-    ctx.stroke();
+  function drawMainRoute(ctx, routeParts, palette) {
+    const [from, to] = routeParts;
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, from, 620, 595, 340, 2, 38, 18, 900, 'Arial, Helvetica, sans-serif', 1.22);
+    drawWrappedText(ctx, to, 1155, 595, 300, 2, 38, 18, 900, 'Arial, Helvetica, sans-serif', 1.22);
+    ctx.fillStyle = palette.gold;
+    ctx.font = '900 28px Arial, Helvetica, sans-serif';
+    ctx.fillText('→', 1035, 600);
+  }
 
-    ctx.fillStyle = navy;
+  function drawJourneyServicePanel(ctx, service, palette) {
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, service.drink, 680, 805, 205, 2, 19, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+    drawWrappedText(ctx, service.sweetness, 1032, 794, 165, 2, 20, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+    drawWrappedText(ctx, service.food, 1340, 805, 388, 2, 19, 12, 800, 'Arial, Helvetica, sans-serif', 1.18);
+  }
+
+  function drawStubDynamic(ctx, data, palette) {
+    ctx.fillStyle = palette.gold;
+    fitText(ctx, data.ticketId, 1940, 387, 264, 17, 11, '800', 'Arial, Helvetica, sans-serif');
+    ctx.fillStyle = palette.navyDeep;
+    fitText(ctx, String(data.nickname || '').toUpperCase(), 1918, 488, 294, 27, 16, '900', 'Arial, Helvetica, sans-serif');
+    drawWrappedText(ctx, data.routeParts[0], 1918, 610, 294, 2, 21, 12, 900, 'Arial, Helvetica, sans-serif', 1.16);
+    ctx.fillStyle = palette.gold;
     ctx.font = '900 18px Arial, Helvetica, sans-serif';
-    ctx.fillText('JOURNEY SERVICE', x + 22, y + 24);
-
-    drawServiceChip(ctx, 'DRINK', service.drink || '-', x + 22, y + 38, 360, 24, navy, gold);
-    drawServiceChip(ctx, 'SWEETNESS', service.sweetness || '-', x + 394, y + 38, 168, 24, navy, gold);
-    drawServiceChip(ctx, 'FOOD', service.food || '-', x + 22, y + 68, width - 44, 24, navy, gold);
-    ctx.restore();
+    ctx.fillText('✈', 1918, 639);
+    ctx.fillStyle = palette.navyDeep;
+    drawWrappedText(ctx, data.routeParts[1], 1918, 692, 294, 2, 21, 12, 900, 'Arial, Helvetica, sans-serif', 1.16);
+    drawBarcode(ctx, 1910, 724, 332, 78, data.ticketId);
   }
 
-  function drawServiceChip(ctx, label, value, x, y, maxWidth, height, navy, gold) {
-    ctx.fillStyle = '#FFFFFF';
-    roundRect(ctx, x, y, maxWidth, height, 12);
-    ctx.fill();
-    ctx.strokeStyle = '#E8DDBE';
-    ctx.lineWidth = 1;
-    roundRect(ctx, x, y, maxWidth, height, 12);
-    ctx.stroke();
-
-    ctx.fillStyle = gold;
-    ctx.font = '800 12px Arial, Helvetica, sans-serif';
-    ctx.fillText(label, x + 12, y + 16);
-
-    ctx.fillStyle = navy;
-    fitText(ctx, String(value || '-'), x + 86, y + 16, maxWidth - 98, 14, 11, '800', 'Arial, Helvetica, sans-serif');
+  function drawWrappedText(ctx, text, x, y, maxWidth, maxLines, fontSize, minSize, weight, family, lineHeightFactor) {
+    const value = String(text || '').trim();
+    const factor = lineHeightFactor || 1.2;
+    let size = fontSize;
+    while (size >= minSize) {
+      ctx.font = `${weight} ${size}px ${family}`;
+      const lines = wrapTextLines(ctx, value, maxWidth, maxLines);
+      if (lines.fits) {
+        const lineHeight = size * factor;
+        lines.lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
+        return;
+      }
+      size -= 1;
+    }
+    ctx.font = `${weight} ${minSize}px ${family}`;
+    const lines = wrapTextLines(ctx, value, maxWidth, maxLines);
+    const lineHeight = minSize * factor;
+    lines.lines.forEach((line, index) => ctx.fillText(line, x, y + index * lineHeight));
   }
 
-  function drawTemplateFallback(ctx, width, height) {
-    ctx.fillStyle = '#FFFDFD'; ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = '#103560'; roundRect(ctx, 12, 12, width - 24, 193, 36); ctx.fill();
-    ctx.fillStyle = '#CFA84C'; ctx.font = '800 27px Arial'; ctx.fillText('CES • LEADERSHIP TRANSFORMATION JOURNEY PASSPORT', 200, 75);
-    ctx.fillStyle = '#FFFFFF'; ctx.font = '900 70px Georgia'; ctx.fillText('Journey Check-in', 200, 155);
-    ctx.fillStyle = '#F7F3EB'; roundRect(ctx, 54, 250, 451, 540, 30); ctx.fill();
-    ctx.strokeStyle = '#CFA84C'; ctx.lineWidth = 5; roundRect(ctx, 84, 280, 391, 370, 26); ctx.stroke();
+  function wrapTextLines(ctx, text, maxWidth, maxLines) {
+    const words = String(text || '').split(/\s+/).filter(Boolean);
+    if (!words.length) return { lines: [''], fits: true };
+    const lines = [];
+    let current = words[0];
+    for (let i = 1; i < words.length; i += 1) {
+      const test = `${current} ${words[i]}`;
+      if (ctx.measureText(test).width <= maxWidth) current = test;
+      else {
+        lines.push(current);
+        current = words[i];
+      }
+    }
+    lines.push(current);
+    if (lines.length <= maxLines) return { lines, fits: true };
+    const trimmed = lines.slice(0, maxLines);
+    let last = trimmed[maxLines - 1];
+    while (last.length && ctx.measureText(`${last}…`).width > maxWidth) {
+      last = last.slice(0, -1).trim();
+    }
+    trimmed[maxLines - 1] = `${last}…`;
+    return { lines: trimmed, fits: false };
   }
 
   function setJpegDpiMetadata(dataUrl, dpi) {

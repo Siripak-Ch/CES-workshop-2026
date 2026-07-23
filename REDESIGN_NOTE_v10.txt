@@ -1,0 +1,5 @@
+v10 Boarding Pass redesign
+
+- Redesigned the generated boarding pass to match the latest boarding-pass style.
+- Main change is in assets/js/app.js
+- Backend does not need changes or redeploy.
