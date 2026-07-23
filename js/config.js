@@ -1,6 +1,6 @@
 /** CES Boarding Pass v11 public frontend configuration. */
 window.CES_APP_CONFIG = Object.freeze({
-  backendUrl: 'https://script.google.com/macros/s/AKfycby9OLRUG2SoRYdTW35fzhxH4_lqcuM60KGdClqrqkAQ66cFu3I7swUD1PchhkB8GRjbyg/exec',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbxVIIR0SkfjOhc8HFHu9XXePlTphI17teFzX981J0vEf7zZLdGpBlSWXbjCsS_06QDH/exec',
   channel: 'CES_BOARDING_PASS_FORM_V4',
   requestTimeoutMs: 120000,
   pollIntervalMs: 700,
