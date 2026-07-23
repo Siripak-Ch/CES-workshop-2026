@@ -39,7 +39,8 @@
     $('#nextBtn').addEventListener('click', nextStep);
     $('#backBtn').addEventListener('click', previousStep);
     $('#submitBtn').addEventListener('click', submitForm);
-    $('#photoInput').addEventListener('change', handlePhoto);
+    $('#cameraInput').addEventListener('change', handlePhoto);
+    $('#albumInput').addEventListener('change', handlePhoto);
     $('#downloadJpeg').addEventListener('click', downloadBoardingPass);
     $('#printPass').addEventListener('click', () => window.print());
     $('#editAgain').addEventListener('click', editAgain);
@@ -318,7 +319,7 @@
       gate: state.role === 'AM_MNG' ? 'LEAD' : 'TEAM',
       eventDate: config.event.dateDisplay,
       eventDateThai: config.event.dateThai,
-      route: 'FAVE → WAKE UP',
+      route: 'FAVE CASUAL DINING AND WORKING SPACE → WAKE UP - CAFE AND RESTAURANT',
       selections: {
         morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
         morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
@@ -400,141 +401,80 @@
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d', { alpha: false });
-    const [photo, logo] = await Promise.all([loadImage(photoData), loadImage(appConfig.logoUrl)]);
 
-    const navy = '#0B2E59';
-    const navy2 = '#184a78';
-    const gold = '#C7A252';
-    const cream = '#F7F1E5';
-    const paper = '#FFFDF8';
-    const muted = '#647587';
+    const images = await Promise.all([
+      loadImageWithTimeout(photoData, Number(appConfig.generationTimeoutMs || 12000)),
+      loadImageWithTimeout(appConfig.boardingTemplateUrl, Number(appConfig.generationTimeoutMs || 12000)).catch(() => null)
+    ]);
+    const photo = images[0];
+    const template = images[1];
 
-    const bg = ctx.createLinearGradient(0, 0, width, height);
-    bg.addColorStop(0, '#faf6ee');
-    bg.addColorStop(1, '#efe7d7');
-    ctx.fillStyle = bg;
-    ctx.fillRect(0, 0, width, height);
+    if (template) ctx.drawImage(template, 0, 0, width, height);
+    else drawTemplateFallback(ctx, width, height);
 
-    ctx.fillStyle = paper;
-    roundRect(ctx, 30, 30, width - 60, height - 60, 40);
-    ctx.fill();
+    const navy = '#103560';
+    const gold = '#CFA84C';
+    const muted = '#647589';
 
-    const hero = ctx.createLinearGradient(0, 0, width, 0);
-    hero.addColorStop(0, navy);
-    hero.addColorStop(1, navy2);
-    ctx.fillStyle = hero;
-    roundRect(ctx, 30, 30, width - 60, 180, 40);
-    ctx.fill();
-
+    // Participant photo — crop only, never stretch.
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(116, 120, 62, 0, Math.PI * 2);
+    roundRect(ctx, 84, 280, 391, 370, 26);
     ctx.clip();
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(54, 58, 124, 124);
-    ctx.drawImage(logo, 54, 58, 124, 124);
+    drawCoverImage(ctx, photo, 84, 280, 391, 370);
     ctx.restore();
 
-    ctx.fillStyle = '#f0d999';
-    ctx.font = '800 28px Tahoma, Arial, sans-serif';
-    ctx.fillText('CES • TEAM JOURNEY PASSPORT', 210, 84);
-    ctx.fillStyle = '#fff';
-    ctx.font = '900 70px Georgia, serif';
-    ctx.fillText('Journey Check-in', 210, 154);
-
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '700 20px Tahoma, Arial, sans-serif';
-    ctx.fillText('LEAD • INSPIRE • ELEVATE', width - 420, 156);
-
-    // left photo block
-    ctx.fillStyle = '#f4efe4';
-    roundRect(ctx, 80, 260, 340, 465, 28);
-    ctx.fill();
-    ctx.save();
-    roundRect(ctx, 104, 286, 292, 350, 24);
-    ctx.clip();
-    drawCoverImage(ctx, photo, 104, 286, 292, 350);
-    ctx.restore();
-    ctx.strokeStyle = gold;
-    ctx.lineWidth = 5;
-    roundRect(ctx, 104, 286, 292, 350, 24);
-    ctx.stroke();
-    ctx.fillStyle = navy;
-    ctx.font = '900 21px Tahoma, Arial, sans-serif';
-    ctx.fillText('PASSENGER', 130, 680);
     ctx.fillStyle = muted;
-    ctx.font = '700 22px Tahoma, Arial, sans-serif';
-    ctx.fillText('ID ' + result.employeeId, 130, 713);
+    ctx.font = '700 21px Tahoma, Arial, sans-serif';
+    ctx.fillText(result.employeeId, 132, 752);
 
-    // middle information block
+    ctx.fillStyle = navy;
+    fitText(ctx, String(result.nickname || '').toUpperCase(), 590, 378, 1150, 72, 38, '900', 'Georgia, serif');
+    ctx.fillStyle = muted;
+    ctx.font = '700 24px Tahoma, Arial, sans-serif';
+    ctx.fillText(result.employeeId, 785, 438);
+
+    drawDynamicValue(ctx, result.roleLabel, 616, 536, 235, 28, 17, navy);
+    drawDynamicValue(ctx, result.eventDate, 926, 536, 235, 27, 16, navy);
+    drawDynamicValue(ctx, result.departure, 1236, 536, 235, 28, 17, navy);
+    drawDynamicValue(ctx, result.route, 616, 681, 540, 23, 11, navy);
+    drawDynamicValue(ctx, result.arrival, 1236, 681, 235, 28, 17, navy);
+
+    const drink = result.role === 'AM_MNG' ? result.selections.morningDrink : result.selections.afternoonDrink;
+    const sweetness = result.role === 'AM_MNG' ? result.selections.morningSweetness : result.selections.afternoonSweetness;
+    const food = result.role === 'AM_MNG' ? result.selections.breakfastFood : 'AFTERNOON BREAK';
+    ctx.fillStyle = muted;
+    fitText(ctx, `DRINK  ${drink} • SWEETNESS ${sweetness}`, 590, 804, 1160, 20, 13, '700', 'Tahoma, Arial, sans-serif');
+    fitText(ctx, `FOOD  ${food}`, 590, 833, 1160, 20, 13, '700', 'Tahoma, Arial, sans-serif');
+
     ctx.fillStyle = gold;
-    ctx.font = '800 20px Tahoma, Arial, sans-serif';
-    ctx.fillText('BOARDING PASS TEMPLATE', 480, 272);
-    ctx.fillStyle = navy;
-    fitText(ctx, String(result.nickname || '').toUpperCase(), 480, 350, 1120, 84, 48, '900', 'Georgia, serif');
-    ctx.fillStyle = muted;
-    ctx.font = '700 26px Tahoma, Arial, sans-serif';
-    ctx.fillText('EMPLOYEE ID  ' + result.employeeId, 480, 392);
+    fitText(ctx, result.ticketId, 1900, 370, 455, 20, 13, '800', 'Tahoma, Arial, sans-serif');
+    ctx.fillStyle = '#FFFFFF';
+    fitText(ctx, result.nickname, 1900, 470, 455, 27, 17, '900', 'Tahoma, Arial, sans-serif');
+    fitText(ctx, result.route, 1900, 585, 455, 21, 12, '800', 'Tahoma, Arial, sans-serif');
+    drawBarcode(ctx, 1900, 650, 455, 100, result.ticketId);
 
-    const metaItems = [
-      ['GROUP', result.roleLabel],
-      ['DATE', result.eventDate],
-      ['BOARDING', result.departure],
-      ['ROUTE', result.route],
-      ['GATE', result.gate],
-      ['ARRIVAL', result.arrival]
-    ];
-    metaItems.forEach((item, index) => {
-      const col = index % 3;
-      const row = Math.floor(index / 3);
-      drawMetaBlock(ctx, 480 + col * 310, 440 + row * 118, 284, 96, item[0], item[1], navy, muted, gold);
-    });
+    return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.86), Number(exp.dpi || 300));
+  }
 
-    const serviceLines = result.role === 'AM_MNG'
-      ? [
-        'DRINK  ' + result.selections.morningDrink,
-        'SWEETNESS  ' + result.selections.morningSweetness,
-        'FOOD  ' + result.selections.breakfastFood
-      ]
-      : [
-        'DRINK  ' + result.selections.afternoonDrink,
-        'SWEETNESS  ' + result.selections.afternoonSweetness,
-        'SESSION  AFTERNOON JOURNEY'
-      ];
-    ctx.fillStyle = navy;
-    ctx.font = '900 20px Tahoma, Arial, sans-serif';
-    ctx.fillText('JOURNEY SERVICE', 480, 720);
-    ctx.fillStyle = muted;
-    serviceLines.forEach((line, idx) => fitText(ctx, line, 480, 752 + idx * 28, 1180, 22, 18, '700', 'Tahoma, Arial, sans-serif'));
+  function loadImageWithTimeout(src, timeoutMs) {
+    return Promise.race([
+      loadImage(src),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('โหลดรูปสำหรับ Boarding Pass นานเกินกำหนด')), timeoutMs))
+    ]);
+  }
 
-    // right stub
-    const stubX = 1820;
-    ctx.strokeStyle = '#d6cfbe';
-    ctx.lineWidth = 4;
-    ctx.setLineDash([15, 14]);
-    ctx.beginPath();
-    ctx.moveTo(stubX, 214);
-    ctx.lineTo(stubX, height - 58);
-    ctx.stroke();
-    ctx.setLineDash([]);
+  function drawDynamicValue(ctx, text, x, y, maxWidth, initialSize, minSize, color) {
+    ctx.fillStyle = color;
+    fitText(ctx, text, x, y, maxWidth, initialSize, minSize, '900', 'Tahoma, Arial, sans-serif');
+  }
 
-    ctx.fillStyle = navy;
-    roundRect(ctx, stubX + 20, 230, width - stubX - 50, 560, 28);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.font = '900 26px Tahoma, Arial, sans-serif';
-    ctx.fillText('BOARDING PASS', stubX + 60, 286);
-    ctx.fillStyle = '#f0d999';
-    fitText(ctx, result.ticketId, stubX + 60, 328, 480, 30, 20, '800', 'Tahoma, Arial, sans-serif');
-    drawStubLine(ctx, stubX + 60, 390, 'PASSENGER', result.nickname, gold);
-    drawStubLine(ctx, stubX + 60, 470, 'ROUTE', result.route, gold);
-    drawStubLine(ctx, stubX + 60, 550, 'BOARDING', result.departure + ' • ' + result.gate, gold);
-    drawBarcode(ctx, stubX + 60, 620, 445, 108, result.ticketId);
-    ctx.fillStyle = '#f0d999';
-    ctx.font = '700 17px Tahoma, Arial, sans-serif';
-    ctx.fillText('LEADERSHIP TRANSFORMATION JOURNEY 2026', stubX + 60, 765);
-
-    return setJpegDpiMetadata(canvas.toDataURL('image/jpeg', 0.90), Number(exp.dpi || 300));
+  function drawTemplateFallback(ctx, width, height) {
+    ctx.fillStyle = '#FFFDFD'; ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#103560'; roundRect(ctx, 12, 12, width - 24, 193, 36); ctx.fill();
+    ctx.fillStyle = '#CFA84C'; ctx.font = '800 27px Arial'; ctx.fillText('CES • LEADERSHIP TRANSFORMATION JOURNEY PASSPORT', 200, 75);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '900 70px Georgia'; ctx.fillText('Journey Check-in', 200, 155);
+    ctx.fillStyle = '#F7F3EB'; roundRect(ctx, 54, 250, 451, 540, 30); ctx.fill();
+    ctx.strokeStyle = '#CFA84C'; ctx.lineWidth = 5; roundRect(ctx, 84, 280, 391, 370, 26); ctx.stroke();
   }
 
   function setJpegDpiMetadata(dataUrl, dpi) {

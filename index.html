@@ -56,7 +56,13 @@
           <label>รูปของคุณ</label>
           <div class="photo-row">
             <img id="photoPreview" class="avatar" alt="รูปตัวอย่าง" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' rx='80' fill='%23ece8dc'/%3E%3Ccircle cx='80' cy='60' r='28' fill='%2393a0ad'/%3E%3Cpath d='M27 148c7-37 27-54 53-54s46 17 53 54' fill='%2393a0ad'/%3E%3C/svg%3E">
-            <div><label class="upload-btn" for="photoInput">📷 ถ่ายรูป / เลือกรูป</label><input id="photoInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp" capture="user"><p class="hint">ระบบจะย่อรูปอัตโนมัติเพื่อให้ Check-in เร็วขึ้น</p></div>
+            <div class="photo-actions">
+              <label class="upload-btn" for="cameraInput">📷 ถ่ายรูปใหม่</label>
+              <input id="cameraInput" class="file-input" type="file" accept="image/*" capture="user">
+              <label class="upload-btn upload-btn-light" for="albumInput">🖼️ เลือกจากอัลบั้ม / ไฟล์</label>
+              <input id="albumInput" class="file-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif">
+              <p class="hint">เลือกได้ทั้งกล้อง รูปในอัลบั้ม หรือไฟล์จากเครื่อง</p>
+            </div>
           </div>
         </div>
         <div class="info-line static-line">✓ ระบบจะจัดเก็บรูปใน Google Drive สำหรับกิจกรรมนี้โดยอัตโนมัติ</div>
