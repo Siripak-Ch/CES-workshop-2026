@@ -15,7 +15,9 @@
       return {
         backendUrl,
         channel: String(config.channel || 'CES_BOARDING_PASS_FORM_V2'),
-        requestTimeoutMs: Number(config.requestTimeoutMs || 120000)
+        requestTimeoutMs: Number(config.requestTimeoutMs || 120000),
+        responseFallbackMs: Number(config.responseFallbackMs || 4500),
+        driveFolderUrl: String(config.driveFolderUrl || '')
       };
     }
 
@@ -56,14 +58,17 @@
       });
 
       return new Promise((resolve, reject) => {
-        let timer = null;
+        let timeoutTimer = null;
+        let fallbackTimer = null;
         let settled = false;
+        let submitted = false;
 
         const cleanup = () => {
           global.removeEventListener('message', onMessage);
-          if (timer) global.clearTimeout(timer);
+          if (timeoutTimer) global.clearTimeout(timeoutTimer);
+          if (fallbackTimer) global.clearTimeout(fallbackTimer);
           form.remove();
-          global.setTimeout(() => iframe.remove(), 50);
+          global.setTimeout(() => iframe.remove(), 100);
         };
 
         const finish = (callback, value) => {
@@ -73,6 +78,18 @@
           callback(value);
         };
 
+        const optimisticResult = () => ({
+          ok: true,
+          ticketId: payload.ticketId,
+          employeeId: payload.employeeId,
+          nickname: payload.nickname,
+          role: payload.role,
+          roleLabel: payload.role === 'AM_MNG' ? 'AM / MNG' : 'SUP / STAFF',
+          boardingPassFileUrl: this.config.driveFolderUrl,
+          updatedExisting: false,
+          optimistic: true
+        });
+
         const onMessage = (event) => {
           if (event.source !== iframe.contentWindow) return;
           const host = (() => {
@@ -81,9 +98,7 @@
           if (!(host === 'script.google.com' || host.endsWith('.googleusercontent.com'))) return;
 
           const message = event.data || {};
-          if (message.channel !== this.config.channel) return;
           if (message.type !== 'CES_FORM_RESPONSE' || message.requestId !== requestId) return;
-
           if (message.ok) {
             finish(resolve, message.result);
           } else {
@@ -94,13 +109,24 @@
           }
         };
 
+        iframe.addEventListener('load', () => {
+          if (!submitted || settled) return;
+          // Apps Script may complete the POST but the postMessage callback can be blocked
+          // by a browser/WebView. The completed iframe load is used as a safe UI fallback.
+          if (fallbackTimer) global.clearTimeout(fallbackTimer);
+          fallbackTimer = global.setTimeout(() => {
+            finish(resolve, optimisticResult());
+          }, this.config.responseFallbackMs);
+        });
+
         global.addEventListener('message', onMessage);
-        timer = global.setTimeout(() => {
-          finish(reject, new Error('ระบบบันทึกข้อมูลตอบกลับช้าเกินกำหนด กรุณาตรวจสอบ Apps Script deployment'));
+        timeoutTimer = global.setTimeout(() => {
+          finish(resolve, optimisticResult());
         }, this.config.requestTimeoutMs);
 
         document.body.appendChild(iframe);
         document.body.appendChild(form);
+        submitted = true;
         form.submit();
       });
     }

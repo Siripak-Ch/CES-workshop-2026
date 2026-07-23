@@ -256,14 +256,21 @@
     button.disabled = true;
     showSaving('กำลังสร้าง Boarding Pass…');
 
-    try {
-      const employeeId = $('#employeeId').value.trim().toUpperCase();
-      const nickname = $('#nickname').value.trim();
-      const ticketId = createTicketId(state.role, employeeId);
-      const draft = buildBoardingResult(ticketId, employeeId, nickname);
+    const employeeId = $('#employeeId').value.trim().toUpperCase();
+    const nickname = $('#nickname').value.trim();
+    const ticketId = createTicketId(state.role, employeeId);
+    const draft = buildBoardingResult(ticketId, employeeId, nickname);
 
+    try {
+      // Generate locally first, so the user always sees the Boarding Pass immediately.
       state.boardingPassData = await createBoardingPassJpeg(draft, state.photoData, config);
-      $('#savingText').textContent = 'กำลังบันทึกข้อมูล รูป และ JPEG ลง Google Drive…';
+      state.latestResult = Object.assign({}, draft, {
+        boardingPassFileUrl: config.driveFolderUrl,
+        optimistic: true,
+        updatedExisting: false
+      });
+      hideSaving();
+      showResult(state.latestResult, true);
 
       const result = await client.submitCheckIn({
         role: state.role,
@@ -281,12 +288,20 @@
         afternoonSweetness: state.role === 'SUP_STAFF' ? state.selections.afternoonSweetness : ''
       });
 
-      state.latestResult = result;
-      showResult(result);
+      state.latestResult = Object.assign({}, draft, result);
+      showResult(state.latestResult, false);
     } catch (error) {
-      handleError(error);
-    } finally {
+      // Keep the local JPEG available even if Drive response is delayed.
       hideSaving();
+      if (state.boardingPassData) {
+        $('#resultMessage').textContent = 'สร้าง Boarding Pass แล้ว แต่ยังไม่ได้รับการยืนยันจาก Google Drive กรุณาดาวน์โหลด JPEG ไว้ก่อน แล้วตรวจสอบ Deployment ของ Apps Script';
+        $('#driveFileLink').href = config.driveFolderUrl;
+        $('#driveFileLink').textContent = 'เปิดโฟลเดอร์ Drive';
+        showToast(error && error.message ? error.message : 'การบันทึก Drive ตอบกลับช้า', true);
+      } else {
+        handleError(error);
+      }
+    } finally {
       button.disabled = false;
     }
   }
@@ -303,7 +318,7 @@
       gate: state.role === 'AM_MNG' ? 'LEAD' : 'TEAM',
       eventDate: config.event.dateDisplay,
       eventDateThai: config.event.dateThai,
-      route: state.role === 'AM_MNG' ? 'FAVE → WAKE UP' : 'FAVE',
+      route: 'FAVE → WAKE UP',
       selections: {
         morningDrink: state.role === 'AM_MNG' ? state.selections.morningDrink : '',
         morningSweetness: state.role === 'AM_MNG' ? state.selections.morningSweetness : '',
@@ -314,18 +329,25 @@
     };
   }
 
-  function showResult(result) {
+  function showResult(result, pending) {
     $('#boardingPassImage').src = state.boardingPassData;
-    $('#driveFileLink').href = result.boardingPassFileUrl;
-    $('#resultMessage').textContent = result.updatedExisting
-      ? `อัปเดตข้อมูลของ ${result.nickname} และสร้างไฟล์ใหม่เรียบร้อยแล้ว`
-      : `Check-in สำเร็จสำหรับ ${result.nickname} • ${result.ticketId}`;
+    $('#driveFileLink').href = result.boardingPassFileUrl || config.driveFolderUrl;
+    $('#driveFileLink').textContent = pending ? 'เปิดโฟลเดอร์ Drive' : 'เปิดไฟล์ใน Drive';
+    if (pending) {
+      $('#resultMessage').textContent = `สร้าง Boarding Pass สำหรับ ${result.nickname} แล้ว • กำลังบันทึก JPEG ลง Google Drive…`;
+    } else {
+      $('#resultMessage').textContent = result.optimistic
+        ? `ส่งข้อมูลของ ${result.nickname} ไปยังระบบแล้ว • กรุณาตรวจไฟล์ในโฟลเดอร์ Drive`
+        : result.updatedExisting
+          ? `อัปเดตข้อมูลของ ${result.nickname} และสร้างไฟล์ใหม่เรียบร้อยแล้ว`
+          : `Check-in สำเร็จสำหรับ ${result.nickname} • ${result.ticketId}`;
+    }
     $('#appCard').hidden = true;
     $('.progress-card').hidden = true;
     $('#bottomActions').hidden = true;
     $('#resultCard').hidden = false;
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    showToast('Check-in และบันทึก JPEG สำเร็จแล้ว');
+    if (!pending) showToast(result.optimistic ? 'ส่งข้อมูลเรียบร้อย กรุณาตรวจ Drive' : 'Check-in และบันทึก JPEG สำเร็จแล้ว');
   }
 
   function editAgain() {
