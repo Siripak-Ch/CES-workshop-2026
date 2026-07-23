@@ -14,26 +14,55 @@ const $$ = (selector) => [...document.querySelectorAll(selector)];
 
 let backendClient = null;
 
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
   bindStaticEvents();
+  connectBackend();
+});
 
+async function connectBackend() {
+  setConnectionState('loading');
   try {
     backendClient = new AppsScriptBridgeClient(window.CES_APP_CONFIG);
     await backendClient.connect();
     const config = await backendClient.getAppData();
     initApp(config);
   } catch (error) {
-    const loading = $('#loading');
-    if (loading) loading.textContent = 'เชื่อมต่อระบบไม่สำเร็จ กรุณาตรวจสอบ config.js และ Apps Script deployment';
+    setConnectionState('error', error);
     handleServerError(error);
   }
-});
+}
+
+function setConnectionState(status, error) {
+  const screen = $('#connectionScreen');
+  const loader = $('#connectionLoader');
+  const title = $('#connectionTitle');
+  const detail = $('#connectionDetail');
+  const retry = $('#retryConnection');
+  if (!screen) return;
+
+  if (status === 'loading') {
+    screen.hidden = false;
+    loader.classList.remove('error');
+    title.textContent = 'กำลังเตรียม Passport ของคุณ';
+    detail.textContent = 'กำลังเชื่อมต่อระบบลงทะเบียน โปรดรอสักครู่…';
+    retry.hidden = true;
+    return;
+  }
+
+  loader.classList.add('error');
+  title.textContent = 'ยังเชื่อมต่อระบบไม่ได้';
+  detail.textContent = error && error.message
+    ? error.message
+    : 'โปรดตรวจสอบ Apps Script deployment และ allowedOrigins แล้วลองอีกครั้ง';
+  retry.hidden = false;
+}
 
 function bindStaticEvents() {
   $$('[data-role]').forEach((button) => button.addEventListener('click', () => selectRole(button.dataset.role)));
   $$('[data-next]').forEach((button) => button.addEventListener('click', nextStep));
   $$('[data-back]').forEach((button) => button.addEventListener('click', previousStep));
   $('#photoInput').addEventListener('change', handlePhoto);
+  $('#retryConnection').addEventListener('click', () => window.location.reload());
   $('#submitBtn').addEventListener('click', submitForm);
   $('#downloadJpeg').addEventListener('click', downloadBoardingPass);
   $('#printPass').addEventListener('click', () => window.print());
@@ -52,7 +81,7 @@ function initApp(config) {
   populateSelect($('#morningDrink'), config.menus.morningDrinks, 'เลือกเครื่องดื่ม');
   populateSelect($('#breakfastFood'), config.menus.breakfastFoods, 'เลือกเมนูอาหาร');
   populateSelect($('#afternoonDrink'), config.menus.afternoonDrinks, 'เลือกเครื่องดื่ม');
-  $('#loading').remove();
+  $('#connectionScreen').hidden = true;
   goToStep(1);
 }
 
@@ -127,9 +156,14 @@ function previousStep() {
 function goToStep(step) {
   state.currentStep = step;
   $$('.step').forEach((panel) => panel.classList.toggle('active', Number(panel.dataset.step) === step));
-  const percent = ((step - 1) / state.totalSteps) * 100;
+  const percent = ((step - 1) / (state.totalSteps - 1)) * 100;
   $('#progressBar').style.width = `${percent}%`;
-  $('#progressLabel').textContent = `ขั้นตอน ${step}/${state.totalSteps}`;
+  $('#progressLabel').textContent = `ขั้นตอน ${step} จาก ${state.totalSteps}`;
+  $$('[data-progress-step]').forEach((dot) => {
+    const dotStep = Number(dot.dataset.progressStep);
+    dot.classList.toggle('active', dotStep === step);
+    dot.classList.toggle('done', dotStep < step);
+  });
 }
 
 function validateStep(step) {

@@ -8,49 +8,67 @@
   <title>CES Journey Check-in</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="assets/css/styles.css">
 </head>
 <body>
   <main class="shell">
-    <section class="hero">
-      <p class="eyebrow">CES • TEAM JOURNEY PASSPORT</p>
-      <h1>Leadership<br>Transformation Journey</h1>
-      <p>Pre-event check-in • เลือกเส้นทางของคุณ แล้วรับ Boarding Pass สำหรับการเดินทางร่วมกัน</p>
-      <div class="passport-stamp">LEAD<br>INSPIRE<br>ELEVATE</div>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="hero-copy">
+        <p class="eyebrow">CES • TEAM JOURNEY PASSPORT</p>
+        <h1 id="pageTitle">Leadership<br>Transformation Journey</h1>
+        <p class="hero-description">Pre-event check-in เพื่อเลือกเส้นทาง เมนู และรับ Boarding Pass ของคุณ</p>
+        <div class="hero-meta" aria-label="รายละเอียดกิจกรรม">
+          <span>31 JUL 2026</span>
+          <span>FAVE • BANGKOK</span>
+        </div>
+      </div>
+      <div class="passport-stamp" aria-hidden="true">LEAD<br>INSPIRE<br>ELEVATE</div>
     </section>
 
-    <div class="progress-wrap" id="progressWrap">
-      <div class="progress-track"><div class="progress-bar" id="progressBar"></div></div>
-      <div class="progress-label" id="progressLabel">กำลังโหลด</div>
-    </div>
+    <section class="journey-progress" id="progressWrap" aria-label="ความคืบหน้าการลงทะเบียน">
+      <div class="progress-copy">
+        <strong id="progressLabel">กำลังเชื่อมต่อ</strong>
+        <span>Journey Check-in</span>
+      </div>
+      <div class="progress-track" aria-hidden="true"><div class="progress-bar" id="progressBar"></div></div>
+      <div class="step-dots" id="stepDots" aria-hidden="true">
+        <span data-progress-step="1">1</span><span data-progress-step="2">2</span><span data-progress-step="3">3</span><span data-progress-step="4">4</span><span data-progress-step="5">5</span>
+      </div>
+    </section>
 
     <section class="card" id="appCard">
-      <div class="loading" id="loading">กำลังเตรียม Passport ของคุณ…</div>
+      <div class="connection-screen" id="connectionScreen" role="status" aria-live="polite">
+        <div class="loader-ring" id="connectionLoader" aria-hidden="true"></div>
+        <p class="step-kicker">SYSTEM CONNECTION</p>
+        <h2 id="connectionTitle">กำลังเตรียม Passport ของคุณ</h2>
+        <p class="lead" id="connectionDetail">กำลังเชื่อมต่อระบบลงทะเบียน โปรดรอสักครู่…</p>
+        <button class="btn btn-primary retry-button" id="retryConnection" type="button" hidden>ลองเชื่อมต่ออีกครั้ง</button>
+      </div>
 
       <div class="step" data-step="1">
         <p class="step-kicker">STEP 01 • SELECT YOUR ROUTE</p>
-        <h2>คุณเดินทางในกลุ่มใด?</h2>
-        <p class="lead">เลือกกลุ่มให้ตรงกับตำแหน่ง เพื่อเปิดเมนูและกำหนดการที่เกี่ยวข้อง</p>
+        <h2>คุณอยู่ในกลุ่มใด?</h2>
+        <p class="lead">เลือกให้ตรงกับตำแหน่ง เพื่อแสดงเวลา เมนู และกำหนดการของคุณ</p>
         <div class="role-grid">
           <button class="role-card" type="button" data-role="AM_MNG">
             <span class="role-icon">🧭</span>
-            <strong>AM / MNG</strong>
-            <span>เริ่ม Journey เวลา 09:30 น. พร้อมเมนูเครื่องดื่มและอาหาร</span>
+            <span class="role-copy"><strong>AM / MNG</strong><small>Check-in 09:30 น.</small><span>เครื่องดื่มช่วงเช้า + อาหาร และกิจกรรมเต็มวัน</span></span>
+            <span class="select-mark">✓</span>
           </button>
           <button class="role-card" type="button" data-role="SUP_STAFF">
             <span class="role-icon">🎒</span>
-            <strong>SUP / STAFF</strong>
-            <span>เริ่ม Journey เวลา 13:00 น. พร้อมเมนูเครื่องดื่มช่วงบ่าย</span>
+            <span class="role-copy"><strong>SUP / STAFF</strong><small>Check-in 13:00 น.</small><span>เครื่องดื่มช่วงบ่าย และกิจกรรม 13:00–17:00 น.</span></span>
+            <span class="select-mark">✓</span>
           </button>
         </div>
-        <div class="actions"><span></span><button class="btn btn-primary" type="button" data-next>เดินทางต่อ →</button></div>
+        <div class="actions"><span class="action-spacer"></span><button class="btn btn-primary" type="button" data-next>เดินทางต่อ <span>→</span></button></div>
       </div>
 
       <div class="step" data-step="2">
         <p class="step-kicker">STEP 02 • PASSENGER DETAILS</p>
         <h2>ข้อมูลผู้เดินทาง</h2>
-        <p class="lead">รหัสพนักงานจะใช้ตรวจสอบและอัปเดตข้อมูลเดิมหากส่งซ้ำ</p>
+        <p class="lead">ใช้รหัสพนักงานสำหรับตรวจสอบข้อมูล หากส่งซ้ำระบบจะอัปเดตรายการเดิม</p>
         <div class="grid-2">
           <div class="field">
             <label for="employeeId">รหัสพนักงาน</label>
@@ -58,16 +76,17 @@
           </div>
           <div class="field">
             <label for="nickname">ชื่อเล่น</label>
-            <input id="nickname" type="text" maxlength="40" autocomplete="name" placeholder="ชื่อที่ต้องการแสดงบน Boarding Pass">
+            <input id="nickname" type="text" maxlength="40" autocomplete="name" placeholder="ชื่อบน Boarding Pass">
           </div>
         </div>
         <div class="field">
           <label for="photoInput">รูปของคุณ</label>
           <div class="photo-box">
             <img class="avatar" id="photoPreview" alt="ตัวอย่างรูป" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Crect width='100%25' height='100%25' fill='%23e8e5db'/%3E%3Ccircle cx='80' cy='61' r='30' fill='%2393a0ad'/%3E%3Cpath d='M30 145c6-35 25-51 50-51s44 16 50 51' fill='%2393a0ad'/%3E%3C/svg%3E">
-            <div>
+            <div class="photo-copy">
+              <label class="upload-button" for="photoInput">ถ่ายรูปหรือเลือกรูป</label>
               <input class="file-input" id="photoInput" type="file" accept="image/jpeg,image/png,image/webp" capture="user">
-              <p class="hint">ระบบจะย่อรูปบนอุปกรณ์ก่อนส่ง รองรับ JPG, PNG และ WebP</p>
+              <p class="hint">แนะนำรูปหน้าตรง ระบบจะย่อรูปก่อนส่ง รองรับ JPG, PNG และ WebP</p>
             </div>
           </div>
         </div>
@@ -77,7 +96,7 @@
 
       <div class="step" data-step="3">
         <p class="step-kicker">STEP 03 • JOURNEY MENU</p>
-        <h2>เลือกเมนูสำหรับเส้นทางของคุณ</h2>
+        <h2>เลือกเมนูของคุณ</h2>
         <p class="lead" id="menuLead"></p>
         <div id="amMenu" hidden>
           <div class="grid-2">
@@ -88,13 +107,13 @@
         <div id="staffMenu" hidden>
           <div class="field"><label for="afternoonDrink">เครื่องดื่มช่วงบ่าย</label><select id="afternoonDrink"></select></div>
         </div>
-        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← ย้อนกลับ</button><button class="btn btn-primary" type="button" data-next>ดู Journey →</button></div>
+        <div class="actions"><button class="btn btn-secondary" type="button" data-back>← ย้อนกลับ</button><button class="btn btn-primary" type="button" data-next>ดูกำหนดการ →</button></div>
       </div>
 
       <div class="step" data-step="4">
         <p class="step-kicker">STEP 04 • READ BEFORE BOARDING</p>
         <h2>กำหนดการและสถานที่</h2>
-        <p class="lead">โปรดอ่านรายละเอียดก่อนยืนยัน Check-in</p>
+        <p class="lead">เลื่อนอ่านรายละเอียดให้ครบก่อนยืนยัน</p>
         <div class="agenda" id="agenda"></div>
         <div class="location-grid" id="locations"></div>
         <label class="check-line"><input id="agendaRead" type="checkbox"><span>ฉันอ่านกำหนดการและรายละเอียดสถานที่เรียบร้อยแล้ว</span></label>
@@ -103,8 +122,8 @@
 
       <div class="step" data-step="5">
         <p class="step-kicker">STEP 05 • FINAL CHECK</p>
-        <h2>ตรวจสอบก่อนออก Boarding Pass</h2>
-        <p class="lead">ระบบจะบันทึกข้อมูลลง Google Sheet และสร้าง JPEG ขนาด 21 × 7.425 ซม.</p>
+        <h2>ตรวจสอบก่อน Check-in</h2>
+        <p class="lead">เมื่อยืนยัน ระบบจะบันทึกข้อมูลและสร้าง Boarding Pass เป็น JPEG</p>
         <div class="summary-box" id="summary"></div>
         <div class="actions"><button class="btn btn-secondary" type="button" data-back>← แก้ไข</button><button class="btn btn-gold" id="submitBtn" type="button">ยืนยัน Check-in</button></div>
       </div>
@@ -112,25 +131,14 @@
 
     <section class="boarding-wrap" id="boardingWrap" aria-live="polite">
       <div class="export-heading">
-        <div>
-          <p class="step-kicker">YOUR DIGITAL BOARDING PASS</p>
-          <h2>พร้อมออกเดินทางแล้ว</h2>
-        </div>
+        <div><p class="step-kicker">YOUR DIGITAL BOARDING PASS</p><h2>พร้อมออกเดินทางแล้ว</h2></div>
         <span class="size-badge">21 × 7.425 CM • 300 DPI</span>
       </div>
-
-      <div class="boarding-preview" id="boardingPreview">
-        <img class="boarding-pass-image" id="boardingPassImage" alt="CES Journey Boarding Pass">
-      </div>
-
+      <div class="boarding-preview" id="boardingPreview"><img class="boarding-pass-image" id="boardingPassImage" alt="CES Journey Boarding Pass"></div>
       <div class="export-panel">
-        <div>
-          <strong id="exportStatus">กำลังสร้างและบันทึก JPEG…</strong>
-          <p id="exportDetail">ไฟล์จะถูกเก็บใน Google Drive และข้อมูลลิงก์จะถูกบันทึกกลับเข้า Google Sheet</p>
-        </div>
-        <a class="drive-link" id="driveFileLink" href="#" target="_blank" rel="noopener" hidden>เปิดไฟล์ใน Google Drive ↗</a>
+        <div><strong id="exportStatus">กำลังสร้างและบันทึก JPEG…</strong><p id="exportDetail">ไฟล์จะถูกเก็บใน Google Drive และบันทึกลิงก์กลับเข้า Google Sheet</p></div>
+        <a class="drive-link" id="driveFileLink" href="#" target="_blank" rel="noopener" hidden>เปิดใน Drive ↗</a>
       </div>
-
       <div class="actions after-pass">
         <button class="btn btn-secondary" type="button" id="editAgain">แก้ไขข้อมูล</button>
         <button class="btn btn-secondary" type="button" id="retryExport" hidden>บันทึก JPEG อีกครั้ง</button>
@@ -141,7 +149,6 @@
   </main>
 
   <div class="toast" id="toast"></div>
-
   <script src="assets/js/config.js"></script>
   <script src="assets/js/backend-client.js"></script>
   <script src="assets/js/app.js"></script>
