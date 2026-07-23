@@ -120,7 +120,7 @@ input[type=text]:focus,select:focus{outline:none;border-color:var(--gold);box-sh
   .top-card{padding:18px 20px 20px}
   .top-copy h1{font-size:34px}
   .bottom-actions{grid-template-columns:1fr 1fr;max-width:760px}
-  .result-actions{grid-template-columns:repeat(4,1fr)}
+  .result-actions{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 }
 @media print{
   body{background:#fff}

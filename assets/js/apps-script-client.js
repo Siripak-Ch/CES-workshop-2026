@@ -14,10 +14,9 @@
       }
       return {
         backendUrl,
-        channel: String(config.channel || 'CES_BOARDING_PASS_FORM_V2'),
-        requestTimeoutMs: Number(config.requestTimeoutMs || 120000),
-        responseFallbackMs: Number(config.responseFallbackMs || 4500),
-        driveFolderUrl: String(config.driveFolderUrl || '')
+        channel: String(config.channel || 'CES_BOARDING_PASS_FORM_V4'),
+        requestTimeoutMs: Math.max(30000, Number(config.requestTimeoutMs || 120000)),
+        pollIntervalMs: Math.max(1000, Number(config.pollIntervalMs || 1800))
       };
     }
 
@@ -58,15 +57,17 @@
       });
 
       return new Promise((resolve, reject) => {
-        let timeoutTimer = null;
-        let fallbackTimer = null;
         let settled = false;
-        let submitted = false;
+        let timeoutTimer = null;
+        let pollTimer = null;
+        const activeScripts = new Set();
 
         const cleanup = () => {
           global.removeEventListener('message', onMessage);
           if (timeoutTimer) global.clearTimeout(timeoutTimer);
-          if (fallbackTimer) global.clearTimeout(fallbackTimer);
+          if (pollTimer) global.clearTimeout(pollTimer);
+          activeScripts.forEach((script) => script.remove());
+          activeScripts.clear();
           form.remove();
           global.setTimeout(() => iframe.remove(), 100);
         };
@@ -78,29 +79,26 @@
           callback(value);
         };
 
-        const optimisticResult = () => ({
-          ok: true,
-          ticketId: payload.ticketId,
-          employeeId: payload.employeeId,
-          nickname: payload.nickname,
-          role: payload.role,
-          roleLabel: payload.role === 'AM_MNG' ? 'AM / MNG' : 'SUP / STAFF',
-          boardingPassFileUrl: this.config.driveFolderUrl,
-          updatedExisting: false,
-          optimistic: true
-        });
+        const handleStatus = (status) => {
+          if (!status || status.requestId !== requestId) return;
+          const state = String(status.state || '').toUpperCase();
+          if (state === 'SUCCESS') {
+            finish(resolve, status.result || {});
+          } else if (state === 'ERROR') {
+            finish(reject, new Error(String(status.message || 'Backend ไม่สามารถบันทึกข้อมูลได้')));
+          }
+        };
 
         const onMessage = (event) => {
-          if (event.source !== iframe.contentWindow) return;
           const host = (() => {
             try { return new URL(event.origin).hostname; } catch (error) { return ''; }
           })();
           if (!(host === 'script.google.com' || host.endsWith('.googleusercontent.com'))) return;
-
           const message = event.data || {};
           if (message.type !== 'CES_FORM_RESPONSE' || message.requestId !== requestId) return;
+          if (message.channel && message.channel !== this.config.channel) return;
           if (message.ok) {
-            finish(resolve, message.result);
+            finish(resolve, message.result || {});
           } else {
             const text = message.error && message.error.message
               ? String(message.error.message)
@@ -109,32 +107,74 @@
           }
         };
 
-        iframe.addEventListener('load', () => {
-          if (!submitted || settled) return;
-          // Apps Script may complete the POST but the postMessage callback can be blocked
-          // by a browser/WebView. The completed iframe load is used as a safe UI fallback.
-          if (fallbackTimer) global.clearTimeout(fallbackTimer);
-          fallbackTimer = global.setTimeout(() => {
-            finish(resolve, optimisticResult());
-          }, this.config.responseFallbackMs);
-        });
+        const poll = () => {
+          if (settled) return;
+          this.fetchStatusJsonp_(requestId, activeScripts)
+            .then(handleStatus)
+            .catch(() => {})
+            .finally(() => {
+              if (!settled) pollTimer = global.setTimeout(poll, this.config.pollIntervalMs);
+            });
+        };
 
         global.addEventListener('message', onMessage);
         timeoutTimer = global.setTimeout(() => {
-          finish(resolve, optimisticResult());
+          finish(reject, new Error('ยังไม่ได้รับการยืนยันว่าบันทึกลง Google Drive สำเร็จ กรุณาตรวจ Apps Script deployment และสิทธิ์โฟลเดอร์ Drive'));
         }, this.config.requestTimeoutMs);
 
         document.body.appendChild(iframe);
         document.body.appendChild(form);
-        submitted = true;
         form.submit();
+        pollTimer = global.setTimeout(poll, 900);
+      });
+    }
+
+    fetchStatusJsonp_(requestId, activeScripts) {
+      return new Promise((resolve, reject) => {
+        const callbackName = '__cesStatus_' + requestId.replace(/[^A-Za-z0-9_]/g, '') + '_' + Date.now();
+        const script = document.createElement('script');
+        activeScripts.add(script);
+        let done = false;
+
+        const cleanup = () => {
+          if (done) return;
+          done = true;
+          delete global[callbackName];
+          activeScripts.delete(script);
+          script.remove();
+        };
+
+        const timer = global.setTimeout(() => {
+          cleanup();
+          reject(new Error('status timeout'));
+        }, 12000);
+
+        global[callbackName] = (status) => {
+          global.clearTimeout(timer);
+          cleanup();
+          resolve(status || {});
+        };
+
+        script.onerror = () => {
+          global.clearTimeout(timer);
+          cleanup();
+          reject(new Error('status request failed'));
+        };
+
+        const params = new URLSearchParams({
+          action: 'status',
+          requestId,
+          channel: this.config.channel,
+          callback: callbackName,
+          _: String(Date.now())
+        });
+        script.src = this.config.backendUrl + '?' + params.toString();
+        document.head.appendChild(script);
       });
     }
 
     makeRequestId_() {
-      if (global.crypto && typeof global.crypto.randomUUID === 'function') {
-        return global.crypto.randomUUID();
-      }
+      if (global.crypto && typeof global.crypto.randomUUID === 'function') return global.crypto.randomUUID();
       return 'req-' + Date.now() + '-' + Math.random().toString(36).slice(2, 12);
     }
   }

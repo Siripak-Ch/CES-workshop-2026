@@ -1,13 +1,12 @@
-/** CES Boarding Pass v9 public frontend configuration. */
+/** CES Boarding Pass v11 public frontend configuration. */
 window.CES_APP_CONFIG = Object.freeze({
-  backendUrl: 'https://script.google.com/macros/s/AKfycby9OLRUG2SoRYdTW35fzhxH4_lqcuM60KGdClqrqkAQ66cFu3I7swUD1PchhkB8GRjbyg/exec',
-  channel: 'CES_BOARDING_PASS_FORM_V2',
+  backendUrl: 'https://script.google.com/macros/s/AKfycbwtCDdVOJyQFxG1YZ8RAXJazmDPObUO6CTtHLscKVcRAHKkRuuCk-2p3qnqUnLEnaHbfA/exec',
+  channel: 'CES_BOARDING_PASS_FORM_V4',
   requestTimeoutMs: 120000,
-  responseFallbackMs: 5000,
+  pollIntervalMs: 1800,
   generationTimeoutMs: 12000,
   driveFolderUrl: 'https://drive.google.com/drive/folders/16avdTExhV5kFuzbfGpk9plzRqq9OAJ_g',
-  logoUrl: 'assets/images/logo-transparent.png',
-  boardingTemplateUrl: 'assets/images/boarding-pass-template.png',
+  logoUrl: 'assets/images/workshop-passport-logo.png',
   export: { mimeType: 'image/jpeg', widthCm: 21, heightCm: 7.425, widthPx: 2480, heightPx: 877, dpi: 300 },
   event: {
     name: 'Leadership Transformation Journey 2026', dateISO: '2026-07-31', dateDisplay: '31 JUL 2026', dateThai: '31 กรกฎาคม 2569',
